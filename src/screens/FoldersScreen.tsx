@@ -7,10 +7,18 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { childrenOf, IndexEntry, removeEntry } from '@/storage';
+import { childrenOf, IndexEntry } from '@/storage';
+import {
+  createFolder,
+  deleteEntries,
+  moveEntries,
+  searchEntries,
+} from '@/storage/operations';
 import { pickAndImport } from '@/photos/importer';
+import { getActiveBucketId } from '@/state/bucketStore';
 
 type SortKey = 'name' | 'size' | 'mtime';
 
@@ -19,20 +27,25 @@ export default function FoldersScreen() {
   const [items, setItems] = useState<IndexEntry[]>([]);
   const [sort, setSort] = useState<SortKey>('name');
   const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selection, setSelection] = useState<Set<string>>(new Set());
 
   const parentId = stack[stack.length - 1];
 
   const load = useCallback(async () => {
     setRefreshing(true);
-    const c = await childrenOf(parentId);
+    let c: IndexEntry[];
+    if (query.trim()) c = await searchEntries(query.trim());
+    else c = await childrenOf(parentId);
     c.sort((a, b) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
       if (sort === 'name') return a.name.localeCompare(b.name);
       if (sort === 'size') return b.size - a.size;
       return b.mtime - a.mtime;
     });
     setItems(c);
     setRefreshing(false);
-  }, [parentId, sort]);
+  }, [parentId, sort, query]);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,10 +53,70 @@ export default function FoldersScreen() {
     }, [load]),
   );
 
+  function toggleSel(id: string) {
+    const n = new Set(selection);
+    n.has(id) ? n.delete(id) : n.add(id);
+    setSelection(n);
+  }
+
+  async function newFolder() {
+    Alert.prompt?.('新規フォルダ', '名前', async name => {
+      if (!name) return;
+      const bid = (await getActiveBucketId()) ?? '';
+      await createFolder(name, parentId, bid);
+      load();
+    });
+  }
+
+  async function moveSelected() {
+    if (selection.size === 0) return;
+    const folders = items.filter(i => i.isFolder && !selection.has(i.id));
+    Alert.alert(
+      '移動先',
+      '',
+      [
+        { text: 'ルート', onPress: () => doMove(null) },
+        ...folders.map(f => ({ text: f.name, onPress: () => doMove(f.id) })),
+        { text: 'キャンセル', style: 'cancel' as const },
+      ],
+    );
+  }
+
+  async function doMove(target: string | null) {
+    await moveEntries([...selection], target);
+    setSelection(new Set());
+    load();
+  }
+
+  async function delSelected() {
+    if (selection.size === 0) return;
+    Alert.alert('削除', `${selection.size}件削除しますか`, [
+      { text: 'キャンセル' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteEntries([...selection]);
+          setSelection(new Set());
+          load();
+        },
+      },
+    ]);
+  }
+
+  const selecting = selection.size > 0;
+
   return (
     <View style={s.root}>
+      <TextInput
+        placeholder="検索"
+        value={query}
+        onChangeText={setQuery}
+        onSubmitEditing={load}
+        style={s.search}
+      />
       <View style={s.toolbar}>
-        {stack.length > 1 && (
+        {stack.length > 1 && !query && (
           <TouchableOpacity onPress={() => setStack(stack.slice(0, -1))}>
             <Text style={s.tool}>← 戻る</Text>
           </TouchableOpacity>
@@ -54,40 +127,46 @@ export default function FoldersScreen() {
           }>
           <Text style={s.tool}>並び: {sort}</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={newFolder}>
+          <Text style={s.tool}>＋フォルダ</Text>
+        </TouchableOpacity>
+        {selecting && (
+          <>
+            <TouchableOpacity onPress={moveSelected}>
+              <Text style={s.tool}>移動 ({selection.size})</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={delSelected}>
+              <Text style={[s.tool, { color: '#c33' }]}>削除</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
       <FlatList
         data={items}
         keyExtractor={x => x.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={s.row}
-            onPress={() => {
-              if (item.isFolder) setStack([...stack, item.id]);
-            }}
-            onLongPress={() =>
-              Alert.alert('削除', `${item.name} を削除しますか`, [
-                { text: 'キャンセル' },
-                {
-                  text: '削除',
-                  style: 'destructive',
-                  onPress: async () => {
-                    await removeEntry(item.id);
-                    load();
-                  },
-                },
-              ])
-            }>
-            <Text style={s.icon}>{item.isFolder ? '📁' : '📄'}</Text>
-            <View style={{ flex: 1 }}>
-              <Text>{item.name}</Text>
-              <Text style={s.sub}>{formatSize(item.plainSize)}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <Text style={s.empty}>ファイルがありません</Text>
-        }
+        renderItem={({ item }) => {
+          const sel = selection.has(item.id);
+          return (
+            <TouchableOpacity
+              style={[s.row, sel && s.rowSel]}
+              onPress={() => {
+                if (selecting) toggleSel(item.id);
+                else if (item.isFolder) setStack([...stack, item.id]);
+              }}
+              onLongPress={() => toggleSel(item.id)}>
+              <Text style={s.icon}>{item.isFolder ? '📁' : '📄'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text>{item.name}</Text>
+                <Text style={s.sub}>
+                  {item.isFolder ? '—' : formatSize(item.plainSize)}
+                </Text>
+              </View>
+              {sel && <Text>✓</Text>}
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={<Text style={s.empty}>ファイルがありません</Text>}
       />
       <TouchableOpacity
         style={s.fab}
@@ -115,14 +194,22 @@ function formatSize(n: number): string {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
+  search: {
+    margin: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+  },
   toolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 12,
+    flexWrap: 'wrap',
+    padding: 8,
     borderBottomWidth: 1,
     borderColor: '#eee',
+    gap: 12,
   },
-  tool: { color: '#007aff' },
+  tool: { color: '#007aff', marginRight: 12 },
   row: {
     flexDirection: 'row',
     padding: 12,
@@ -130,6 +217,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#f0f0f0',
   },
+  rowSel: { backgroundColor: '#e0f0ff' },
   icon: { fontSize: 20, marginRight: 12 },
   sub: { fontSize: 11, color: '#888' },
   empty: { textAlign: 'center', marginTop: 48, color: '#888' },
