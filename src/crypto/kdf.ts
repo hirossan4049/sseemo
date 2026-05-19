@@ -27,6 +27,25 @@ export function deriveMasterKey(seed: Buffer): Buffer {
   return hkdf(seed, Buffer.from('SecStorage/v1'), Buffer.from('master'), 32);
 }
 
+/**
+ * パスフレーズ追加保護: Argon2id(passphrase) を salt として
+ * BIP39 seed と組み合わせる。パスフレーズ未設定なら従来通り。
+ */
+export function deriveMasterKeyWithPassphrase(
+  seed: Buffer,
+  argonKey: Buffer,
+): Buffer {
+  return hkdf(seed, argonKey, Buffer.from('master+pp'), 32);
+}
+
+export function deriveIndexKey(master: Buffer): Buffer {
+  return hkdf(master, Buffer.from('SecStorage/v1'), Buffer.from('index'), 32);
+}
+
+export function deriveThumbKey(master: Buffer): Buffer {
+  return hkdf(master, Buffer.from('SecStorage/v1'), Buffer.from('thumb'), 32);
+}
+
 export function deriveFileKey(master: Buffer, fileSalt: Buffer): Buffer {
   return hkdf(master, fileSalt, Buffer.from('SSF1/file'), 32);
 }
