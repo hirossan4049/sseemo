@@ -6,6 +6,7 @@ import RootTabs from '@/navigation/RootNavigator';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
 import BucketSetupScreen from '@/screens/onboarding/BucketSetupScreen';
 import KeyGenScreen from '@/screens/onboarding/KeyGenScreen';
+import PermissionsTourScreen from '@/screens/onboarding/PermissionsTourScreen';
 import LockScreen from '@/screens/LockScreen';
 import { loadMnemonic } from '@/crypto/keychain';
 import {
@@ -82,8 +83,14 @@ export default function App() {
             <Stack.Screen name="BucketSetup" component={BucketSetupScreen} />
             <Stack.Screen name="KeyGen">
               {props => (
-                <KeyGenScreen {...props} onDone={() => setOnboarded(true)} />
+                <KeyGenScreen
+                  {...props}
+                  onDone={() => (props.navigation as any).navigate('PermissionsTour')}
+                />
               )}
+            </Stack.Screen>
+            <Stack.Screen name="PermissionsTour">
+              {() => <PermissionsTourScreen onDone={() => setOnboarded(true)} />}
             </Stack.Screen>
           </>
         )}
