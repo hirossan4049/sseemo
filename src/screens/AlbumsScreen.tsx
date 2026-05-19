@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,14 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadIndex, IndexEntry } from '@/storage';
 import { pickAndImport } from '@/photos/importer';
+import { loadThumb } from '@/photos/thumbnail';
+import { getMaster } from '@/state/keyStore';
+import { getActiveBucket } from '@/state/bucketStore';
 
 const COLS = 3;
 const SIZE = Dimensions.get('window').width / COLS;
@@ -40,9 +44,7 @@ export default function AlbumsScreen() {
             <Text style={s.header}>{item.label}</Text>
             <View style={s.grid}>
               {item.items.map(x => (
-                <View key={x.id} style={s.cell}>
-                  <Text style={s.thumb}>🖼</Text>
-                </View>
+                <Thumb key={x.id} entry={x} />
               ))}
             </View>
           </View>
@@ -66,6 +68,36 @@ export default function AlbumsScreen() {
         }}>
         <Text style={s.fabText}>+</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function Thumb({ entry }: { entry: IndexEntry }) {
+  const [uri, setUri] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const master = getMaster();
+      const bucket = await getActiveBucket();
+      if (!master || !bucket) return;
+      try {
+        const buf = await loadThumb(master, bucket, entry.id);
+        if (!cancelled && buf) {
+          setUri(`data:image/jpeg;base64,${buf.toString('base64')}`);
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.id]);
+  return (
+    <View style={s.cell}>
+      {uri ? (
+        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <Text style={s.thumb}>🖼</Text>
+      )}
     </View>
   );
 }
