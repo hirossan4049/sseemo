@@ -1,4 +1,5 @@
-import { createHmac } from 'react-native-quick-crypto';
+import QuickCrypto from 'react-native-quick-crypto';
+const { createHmac } = QuickCrypto;
 
 /**
  * HKDF-SHA256 (RFC 5869)
@@ -9,14 +10,18 @@ export function hkdf(
   info: Buffer,
   length: number,
 ): Buffer {
-  const prk = createHmac('sha256', salt).update(ikm).digest();
+  const prk = Buffer.from(
+    createHmac('sha256', salt).update(ikm).digest() as any,
+  );
   const out = Buffer.alloc(length);
-  let prev = Buffer.alloc(0);
+  let prev: Buffer = Buffer.alloc(0);
   let pos = 0;
   for (let i = 1; pos < length; i++) {
-    prev = createHmac('sha256', prk)
-      .update(Buffer.concat([prev, info, Buffer.from([i])]))
-      .digest() as Buffer;
+    prev = Buffer.from(
+      createHmac('sha256', prk)
+        .update(Buffer.concat([prev, info, Buffer.from([i])]))
+        .digest() as any,
+    );
     prev.copy(out, pos);
     pos += prev.length;
   }

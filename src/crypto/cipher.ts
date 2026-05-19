@@ -1,8 +1,5 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-} from 'react-native-quick-crypto';
+import QuickCrypto from 'react-native-quick-crypto';
+const { createCipheriv, createDecipheriv, randomBytes } = QuickCrypto;
 import {
   ALGO_AES_256_GCM,
   DEFAULT_CHUNK_SIZE,
@@ -63,9 +60,9 @@ export class FileEncryptor {
   private metaCipher: Buffer;
 
   constructor(opts: EncryptStreamOptions) {
-    const fileSalt = randomBytes(FILE_SALT_SIZE) as Buffer;
+    const fileSalt = Buffer.from(randomBytes(FILE_SALT_SIZE) as any);
     this.fileKey = deriveFileKey(opts.master, fileSalt);
-    this.noncePrefix = randomBytes(4) as Buffer;
+    this.noncePrefix = Buffer.from(randomBytes(4) as any);
     this.chunkSize = opts.chunkSize ?? DEFAULT_CHUNK_SIZE;
 
     const metaPlain = Buffer.from(JSON.stringify(opts.meta), 'utf8');

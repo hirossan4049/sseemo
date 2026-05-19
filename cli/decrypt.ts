@@ -50,7 +50,8 @@ function main() {
     process.exit(1);
   }
   const mnemonic = readFileSync(mnemonicPath, 'utf8').trim().toLowerCase();
-  const seed = Buffer.from(mnemonicToSeedSync(mnemonic, '', wordlist as any));
+  if (!mnemonic.match(/^[a-z]+( [a-z]+){11,23}$/)) throw new Error('bad mnemonic');
+  const seed = Buffer.from(mnemonicToSeedSync(mnemonic, ''));
   const master = hkdf(seed, Buffer.from('SecStorage/v1'), Buffer.from('master'), 32);
 
   const fd = openSync(encPath, 'r');

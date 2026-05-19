@@ -23,9 +23,9 @@ export interface UploadOptions {
  * メモリ常駐は1チャンク分のみ。
  */
 export async function encryptAndUpload(opts: UploadOptions): Promise<void> {
-  const { computeUsage, assertUploadAllowed } = await import('@/state/usage');
-  const usage = await computeUsage(opts.creds.mode);
-  assertUploadAllowed(usage);
+  const usageMod = require('@/state/usage');
+  const usage = await usageMod.computeUsage(opts.creds.mode);
+  usageMod.assertUploadAllowed(usage);
   const stat = await RNFS.stat(opts.localPath);
   const total = Number(stat.size);
   const enc = new FileEncryptor({

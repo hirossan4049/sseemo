@@ -1,4 +1,5 @@
-import { randomBytes, createCipheriv, createDecipheriv } from 'react-native-quick-crypto';
+import QuickCrypto from 'react-native-quick-crypto';
+const { randomBytes, createCipheriv, createDecipheriv } = QuickCrypto;
 import { deriveIndexKey } from '@/crypto/kdf';
 import { NONCE_SIZE, TAG_SIZE } from '@/crypto/format';
 import { BucketCredentials } from '@/crypto/keychain';
@@ -17,7 +18,7 @@ export async function pushIndex(
   entries: IndexEntry[],
 ): Promise<void> {
   const key = deriveIndexKey(master);
-  const nonce = randomBytes(NONCE_SIZE) as Buffer;
+  const nonce = Buffer.from(randomBytes(NONCE_SIZE) as any);
   const plain = Buffer.from(JSON.stringify(entries), 'utf8');
   const c = createCipheriv('aes-256-gcm', key, nonce);
   const ct = Buffer.concat([c.update(plain), c.final()]);

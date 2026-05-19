@@ -1,9 +1,6 @@
 import RNFS from 'react-native-fs';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-} from 'react-native-quick-crypto';
+import QuickCrypto from 'react-native-quick-crypto';
+const { createCipheriv, createDecipheriv, randomBytes } = QuickCrypto;
 import { NONCE_SIZE, TAG_SIZE } from '@/crypto/format';
 import { deriveThumbKey } from '@/crypto/kdf';
 import { BucketCredentials } from '@/crypto/keychain';
@@ -34,7 +31,7 @@ export async function saveThumb(
 ): Promise<void> {
   await ensureCache();
   const key = deriveThumbKey(master);
-  const nonce = randomBytes(NONCE_SIZE) as Buffer;
+  const nonce = Buffer.from(randomBytes(NONCE_SIZE) as any);
   const c = createCipheriv('aes-256-gcm', key, nonce);
   const ct = Buffer.concat([c.update(smallJpeg), c.final()]);
   const tag = c.getAuthTag();
