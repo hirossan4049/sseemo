@@ -40,3 +40,18 @@ export async function childrenOf(parentId: string | null): Promise<IndexEntry[]>
   const all = await loadIndex();
   return all.filter(e => e.parentId === parentId);
 }
+
+/**
+ * ローカルインデックスを暗号化して S3 にプッシュ (best-effort).
+ * 鍵 or バケット未設定なら no-op。失敗してもユーザー操作はブロックしない。
+ */
+export async function syncIndex(): Promise<void> {
+  const { getMaster } = require('@/state/keyStore');
+  const { getActiveBucket } = require('@/state/bucketStore');
+  const { pushIndex } = require('./encryptedIndex');
+  const master = getMaster();
+  const bucket = await getActiveBucket();
+  if (!master || !bucket) return;
+  const all = await loadIndex();
+  await pushIndex(master, bucket, all).catch(() => {});
+}

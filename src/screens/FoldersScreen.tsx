@@ -18,7 +18,10 @@ import {
   searchEntries,
 } from '@/storage/operations';
 import { pickAndImport } from '@/photos/importer';
-import { getActiveBucketId } from '@/state/bucketStore';
+import { getActiveBucket, getActiveBucketId } from '@/state/bucketStore';
+import { downloadAndDecrypt } from '@/s3/download';
+import { getMaster } from '@/state/keyStore';
+import RNFS from 'react-native-fs';
 
 type SortKey = 'name' | 'size' | 'mtime';
 
@@ -88,6 +91,27 @@ export default function FoldersScreen() {
     load();
   }
 
+  async function downloadItem(item: IndexEntry) {
+    const master = getMaster();
+    const bucket = await getActiveBucket();
+    if (!master || !bucket) {
+      Alert.alert('エラー', 'ロック中またはバケット未設定');
+      return;
+    }
+    const out = `${RNFS.DocumentDirectoryPath}/${item.name}`;
+    try {
+      await downloadAndDecrypt({
+        master,
+        creds: bucket,
+        remoteKey: item.remoteKey,
+        localPath: out,
+      });
+      Alert.alert('ダウンロード完了', out);
+    } catch (e: any) {
+      Alert.alert('失敗', e.message);
+    }
+  }
+
   async function delSelected() {
     if (selection.size === 0) return;
     Alert.alert('削除', `${selection.size}件削除しますか`, [
@@ -153,6 +177,7 @@ export default function FoldersScreen() {
               onPress={() => {
                 if (selecting) toggleSel(item.id);
                 else if (item.isFolder) setStack([...stack, item.id]);
+                else downloadItem(item);
               }}
               onLongPress={() => toggleSel(item.id)}>
               <Text style={s.icon}>{item.isFolder ? '📁' : '📄'}</Text>
@@ -172,7 +197,7 @@ export default function FoldersScreen() {
         style={s.fab}
         onPress={async () => {
           try {
-            const n = await pickAndImport();
+            const n = await pickAndImport(parentId);
             Alert.alert('アップロード完了', `${n} 件`);
             load();
           } catch (e: any) {

@@ -1,4 +1,6 @@
-import { IndexEntry, loadIndex, saveIndex } from './index';
+import { IndexEntry, loadIndex, saveIndex, syncIndex } from './index';
+import { getActiveBucket } from '@/state/bucketStore';
+import { deleteObject } from '@/s3/client';
 
 export async function createFolder(
   name: string,
@@ -20,6 +22,7 @@ export async function createFolder(
   const all = await loadIndex();
   all.push(e);
   await saveIndex(all);
+  await syncIndex();
   return e;
 }
 
@@ -35,11 +38,23 @@ export async function moveEntries(
     }
   }
   await saveIndex(all);
+  await syncIndex();
 }
 
 export async function deleteEntries(ids: string[]): Promise<void> {
   const all = await loadIndex();
+  const targets = all.filter(e => ids.includes(e.id));
+  const bucket = await getActiveBucket();
+  if (bucket) {
+    for (const t of targets) {
+      if (!t.isFolder && t.remoteKey) {
+        await deleteObject(bucket, t.remoteKey).catch(() => {});
+        await deleteObject(bucket, `thumbs/${t.id}.t`).catch(() => {});
+      }
+    }
+  }
   await saveIndex(all.filter(e => !ids.includes(e.id)));
+  await syncIndex();
 }
 
 export async function searchEntries(q: string): Promise<IndexEntry[]> {
