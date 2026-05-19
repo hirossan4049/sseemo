@@ -1,0 +1,12 @@
+{
+  "name": "secstorage-decrypt-cli",
+  "version": "0.1.0",
+  "bin": { "ssf-decrypt": "decrypt.ts" },
+  "dependencies": {
+    "@scure/bip39": "^1.3.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
