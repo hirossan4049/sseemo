@@ -5,6 +5,35 @@ const FREE_LIMIT_MANAGED = 5 * 1024 ** 3;
 const FREE_LIMIT_BYO = 10 * 1024 ** 3;
 const NOTIFY_KEY = '@secstorage/usage/notified';
 const PAID_KEY = '@secstorage/usage/paid';
+const REPORT_ENDPOINT_KEY = '@secstorage/usage/reportUrl';
+const REPORT_TOKEN_KEY = '@secstorage/usage/reportToken';
+
+/**
+ * spec §10: BYO 構成ではクライアント側で計測 → サーバー報告。
+ * 報告先URLが未設定なら no-op。サーバー実装側は { used, mode, ts } を受け取る。
+ */
+export async function reportUsage(u: UsageStatus, mode: 'managed' | 'byo'): Promise<void> {
+  const url = await AsyncStorage.getItem(REPORT_ENDPOINT_KEY);
+  if (!url) return;
+  const token = (await AsyncStorage.getItem(REPORT_TOKEN_KEY)) ?? '';
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ used: u.used, mode, ts: Date.now() }),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function setUsageReportEndpoint(url: string, token = ''): Promise<void> {
+  await AsyncStorage.setItem(REPORT_ENDPOINT_KEY, url);
+  if (token) await AsyncStorage.setItem(REPORT_TOKEN_KEY, token);
+}
 
 export interface UsageStatus {
   used: number;

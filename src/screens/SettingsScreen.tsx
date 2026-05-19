@@ -14,13 +14,21 @@ import {
   setPassphrase,
   isPassphraseEnabled,
 } from '@/state/keyStore';
-import { listBucketIds, getActiveBucketId, getActiveBucket } from '@/state/bucketStore';
+import {
+  listBucketIds,
+  getActiveBucketId,
+  getActiveBucket,
+  setActiveBucketId,
+} from '@/state/bucketStore';
 import { subscribe, fetchProducts } from '@/iap';
 import { refreshSubscriptionStatus } from '@/iap/verify';
-import { computeUsage, UsageStatus, checkAndNotify } from '@/state/usage';
+import { computeUsage, UsageStatus, checkAndNotify, reportUsage } from '@/state/usage';
 import { deleteAccount } from '@/auth/accountDelete';
 import { generate12WordMnemonic } from '@/crypto/mnemonic';
 import { saveMnemonic } from '@/crypto/keychain';
+
+import { addBucket } from '@/state/bucketStore';
+import { headBucket } from '@/s3/client';
 
 export default function SettingsScreen() {
   const [usage, setUsage] = useState<UsageStatus | null>(null);
@@ -38,6 +46,7 @@ export default function SettingsScreen() {
     await refreshSubscriptionStatus();
     const u = await computeUsage(mode);
     setUsage(u);
+    reportUsage(u, mode).catch(() => {});
     setBucketIds(await listBucketIds());
     setActiveId(await getActiveBucketId());
     setHasPp(await isPassphraseEnabled());
@@ -84,6 +93,54 @@ export default function SettingsScreen() {
         await saveMnemonic(text.trim().toLowerCase());
         lock();
         Alert.alert('完了', '再起動してください');
+      },
+    );
+  }
+
+  async function addManagedBucket() {
+    const id = `b-${Date.now()}`;
+    await addBucket({
+      id,
+      mode: 'managed',
+      endpoint: 'https://managed.secstorage.app',
+      region: 'auto',
+      bucket: 'managed',
+      accessKeyId: 'managed',
+      secretAccessKey: 'managed',
+      label: 'マネージド',
+    });
+    refresh();
+  }
+
+  async function addByoBucket() {
+    Alert.prompt?.(
+      '互換S3バケット',
+      'endpoint|region|bucket|accessKey|secretKey をパイプ区切りで',
+      async (text: string) => {
+        if (!text) return;
+        const [endpoint, region, bucket, ak, sk] = text.split('|');
+        if (!endpoint || !bucket || !ak || !sk) {
+          Alert.alert('入力不足');
+          return;
+        }
+        const id = `b-${Date.now()}`;
+        const creds = {
+          id,
+          mode: 'byo' as const,
+          endpoint,
+          region: region || 'auto',
+          bucket,
+          accessKeyId: ak,
+          secretAccessKey: sk,
+        };
+        try {
+          const ok = await headBucket(creds);
+          if (!ok) throw new Error('接続失敗');
+          await addBucket(creds);
+          refresh();
+        } catch (e: any) {
+          Alert.alert('追加失敗', e.message);
+        }
       },
     );
   }
@@ -157,10 +214,25 @@ export default function SettingsScreen() {
       </Section>
       <Section title="バケット">
         {bucketIds.map(id => (
-          <Text key={id}>
-            {id} {id === activeId ? '(active)' : ''}
-          </Text>
+          <View key={id} style={s.row}>
+            <Text style={{ flex: 1 }}>
+              {id} {id === activeId ? '(active)' : ''}
+            </Text>
+            {id !== activeId && (
+              <Button
+                title="切替"
+                onPress={async () => {
+                  await setActiveBucketId(id);
+                  refresh();
+                }}
+              />
+            )}
+          </View>
         ))}
+        <View style={{ height: 6 }} />
+        <Button title="マネージドバケットを追加" onPress={addManagedBucket} />
+        <View style={{ height: 6 }} />
+        <Button title="互換S3バケットを追加" onPress={addByoBucket} />
       </Section>
       <Section title="鍵">
         <Button title="リカバリーフレーズを表示" onPress={exportMnemonic} />
