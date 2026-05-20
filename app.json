@@ -1,4 +1,22 @@
 {
   "name": "SecStorage",
-  "displayName": "SecStorage"
+  "displayName": "SecStorage",
+  "expo": {
+    "name": "SecStorage",
+    "slug": "secstorage",
+    "scheme": "secstorage",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.secstorage.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.secstorage.app"
+    },
+    "plugins": [
+      "expo-dev-client"
+    ]
+  }
 }
