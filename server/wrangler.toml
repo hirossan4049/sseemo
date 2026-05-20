@@ -12,14 +12,14 @@ bucket_name = "secstorage-user-data"
 [[d1_databases]]
 binding = "DB"
 database_name = "secstorage"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "9744bc3a-5335-443d-ac34-23679caa95f8"
 
 # Plain config (non-secret). Override secrets via `wrangler secret put`.
 [vars]
 APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
 APPLE_AUDIENCE = "com.secstorage.app"
 FREE_LIMIT_BYTES = "5368709120" # 5 GiB
-R2_ENDPOINT = "https://REPLACE_ACCOUNT_ID.r2.cloudflarestorage.com"
+R2_ENDPOINT = "https://c380b51a9bfc184312b108c9d79b45c1.r2.cloudflarestorage.com"
 R2_BUCKET = "secstorage-user-data"
 R2_REGION = "auto"
 PRESIGN_TTL_SECONDS = "900"

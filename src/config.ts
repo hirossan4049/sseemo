@@ -32,7 +32,7 @@ function readManagedBackendUrl(): string {
   // bundling; consumers can override via setManagedBackendUrl().
   return (
     (globalThis as any).__SECSTORAGE_MANAGED_BACKEND_URL__ ??
-    'https://api.example.com'
+    'https://secstorage-server.crap.workers.dev'
   );
 }
 
