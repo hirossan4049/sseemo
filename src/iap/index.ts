@@ -13,8 +13,9 @@ import {
   Subscription,
   Purchase,
 } from 'react-native-iap';
+import { SUBSCRIPTION_SKU } from '@/config';
 
-export const SUBSCRIPTION_SKU = 'app.secstorage.bucket.monthly';
+export { SUBSCRIPTION_SKU };
 
 export async function init(): Promise<void> {
   await initConnection();

@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadIndex } from '@/storage';
+import { FREE_LIMIT_BYO, FREE_LIMIT_MANAGED } from '@/config';
 
-const FREE_LIMIT_MANAGED = 5 * 1024 ** 3;
-const FREE_LIMIT_BYO = 10 * 1024 ** 3;
 const NOTIFY_KEY = '@secstorage/usage/notified';
 const PAID_KEY = '@secstorage/usage/paid';
 const REPORT_ENDPOINT_KEY = '@secstorage/usage/reportUrl';

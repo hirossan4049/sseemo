@@ -1,6 +1,7 @@
 import RNFS from 'react-native-fs';
 import { FileEncryptor, FileMeta } from '@/crypto/cipher';
 import { DEFAULT_CHUNK_SIZE } from '@/crypto/format';
+import { S3_PART_MIN } from '@/config';
 import { BucketCredentials } from '@/crypto/keychain';
 import {
   abortMultipartUpload,
@@ -37,8 +38,8 @@ export async function encryptAndUpload(opts: UploadOptions): Promise<void> {
   const parts: { partNumber: number; etag: string }[] = [];
 
   try {
-    // S3 マルチパート最小パートサイズ 5MiB。複数チャンクをまとめて送る。
-    const PART_MIN = 5 * 1024 * 1024;
+    // 複数チャンクをまとめて S3 マルチパート最小サイズに合わせて送る。
+    const PART_MIN = S3_PART_MIN;
     let buffer: Buffer = enc.emitHeader();
     let offset = 0;
     let partNumber = 1;
