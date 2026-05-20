@@ -13,7 +13,7 @@
     "test": "jest",
     "lint": "eslint .",
     "tsc": "tsc --noEmit",
-    "cli:decrypt": "ts-node cli/decrypt.ts"
+    "cli:decrypt": "ts-node --project cli/tsconfig.json cli/decrypt.ts"
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",
