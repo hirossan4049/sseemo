@@ -2,8 +2,6 @@ export interface Env {
   USER_DATA: R2Bucket;
   DB: D1Database;
   JWT_SECRET: string;
-  APPLE_JWKS_URL: string;
-  APPLE_AUDIENCE: string;
   FREE_LIMIT_BYTES: string;
   R2_ENDPOINT: string;
   R2_BUCKET: string;
@@ -12,12 +10,10 @@ export interface Env {
   R2_SECRET_ACCESS_KEY: string;
   PRESIGN_TTL_SECONDS: string;
   APP_STORE_SHARED_SECRET: string;
-  ALLOW_DEV_AUTH?: string;
-  DEV_AUTH_TOKEN?: string;
 }
 
 export interface SessionClaims {
-  sub: string; // user id (Apple sub)
+  sub: string; // user id (`device:<deviceTag>`)
   email?: string;
   iat: number;
   exp: number;

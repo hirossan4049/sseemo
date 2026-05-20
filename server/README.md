@@ -9,13 +9,13 @@ is E2E-encrypted client-side, including the index blob.
 - Cloudflare Workers (TypeScript)
 - R2 (S3-compatible) bucket for user objects and the encrypted index blob
 - D1 for users / subscriptions / quota reservations
-- HS256 session JWTs (24h default); Apple identityToken (RS256) verified at sign-in via JWKS
+- HS256 session JWTs (30d default); device-bound anonymous auth via a client-generated 128-bit `deviceTag` persisted in the iOS Keychain
 
 ## Endpoints
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/auth/apple` | Body `{ identityToken }`. Verifies JWKS, upserts user, returns `{ token, userId }`. |
+| POST | `/auth/device` | Body `{ deviceTag }` (8..128 chars, `[A-Za-z0-9_-]`). Upserts user `device:<tag>`, returns `{ token, userId }`. |
 | POST | `/iap/verify` | Body `{ receipt }`. App Store legacy verifyReceipt (prod+sandbox fallback). |
 | GET  | `/usage` | `{ usedBytes, reservedBytes, limitBytes }` for current user. |
 | POST | `/usage/report` | BYO-only delta report; no-op for managed. |
@@ -27,7 +27,7 @@ is E2E-encrypted client-side, including the index blob.
 | PUT/GET | `/index` | Stores/retrieves `users/<uid>/index.bin` (the client-encrypted file index). |
 | DELETE | `/account` | Deletes the R2 prefix and the user row. |
 
-All endpoints except `/health` and `/auth/apple` require
+All endpoints except `/health` and `/auth/device` require
 `Authorization: Bearer <session-jwt>`.
 
 ## One-time setup
@@ -53,7 +53,6 @@ npx wrangler secret put APP_STORE_SHARED_SECRET   # from App Store Connect
 
 # 5. edit wrangler.toml [vars]
 #    set R2_ENDPOINT to https://<your-account-id>.r2.cloudflarestorage.com
-#    set APPLE_AUDIENCE to your iOS bundle id (default com.secstorage.app)
 
 # 6. apply migrations (remote D1)
 npm run migrate
@@ -83,7 +82,7 @@ reservedBytes`; the client commits with `/storage/commit` (or
 bytes into `used_bytes` and clears the reservation. Expired reservations are
 swept lazily on every quota read. IAP-active users get a 1 TiB `limit_bytes`.
 
-## Apple receipt verification
+## App Store receipt verification
 
 Uses the legacy `verifyReceipt` endpoint (prod, falling back to sandbox on
 status `21007`). Modern App Store Server API JWS verification is intentionally

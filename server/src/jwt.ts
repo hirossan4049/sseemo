@@ -1,6 +1,5 @@
 /**
- * Compact HS256 JWT signer/verifier and Apple identityToken (RS256) verifier
- * using JWKS from `appleid.apple.com/auth/keys`.
+ * Compact HS256 JWT signer/verifier.
  *
  * Pure WebCrypto so it runs on Workers without any deps.
  */
@@ -78,72 +77,3 @@ export async function verifySessionJWT(
   return payload;
 }
 
-interface JWK {
-  kid: string;
-  kty: 'RSA';
-  n: string;
-  e: string;
-  alg?: string;
-  use?: string;
-}
-
-let jwksCache: { url: string; at: number; keys: JWK[] } | null = null;
-
-async function loadJWKS(url: string): Promise<JWK[]> {
-  if (jwksCache && jwksCache.url === url && Date.now() - jwksCache.at < 3600_000) {
-    return jwksCache.keys;
-  }
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('jwks: fetch failed');
-  const j = (await r.json()) as { keys: JWK[] };
-  jwksCache = { url, at: Date.now(), keys: j.keys };
-  return j.keys;
-}
-
-/** For tests: inject a JWKS instead of fetching. */
-export function __setJWKSForTest(url: string, keys: JWK[]): void {
-  jwksCache = { url, at: Date.now(), keys };
-}
-
-export interface AppleIdentityClaims {
-  sub: string;
-  email?: string;
-  aud: string;
-  iss: string;
-  exp: number;
-}
-
-export async function verifyAppleIdentityToken(
-  token: string,
-  jwksUrl: string,
-  expectedAudience: string,
-): Promise<AppleIdentityClaims> {
-  const [h, p, s] = token.split('.');
-  if (!h || !p || !s) throw new Error('apple: malformed');
-  const header = JSON.parse(b64uDecodeStr(h));
-  const payload = JSON.parse(b64uDecodeStr(p));
-  if (header.alg !== 'RS256') throw new Error('apple: bad alg');
-  const keys = await loadJWKS(jwksUrl);
-  const jwk = keys.find(k => k.kid === header.kid);
-  if (!jwk) throw new Error('apple: no matching JWK');
-  const key = await crypto.subtle.importKey(
-    'jwk',
-    { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true } as JsonWebKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['verify'],
-  );
-  const ok = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
-    key,
-    b64uDecode(s),
-    enc.encode(`${h}.${p}`),
-  );
-  if (!ok) throw new Error('apple: bad signature');
-  if (payload.iss !== 'https://appleid.apple.com') throw new Error('apple: bad iss');
-  if (payload.aud !== expectedAudience) throw new Error('apple: bad aud');
-  if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
-    throw new Error('apple: expired');
-  }
-  return payload as AppleIdentityClaims;
-}

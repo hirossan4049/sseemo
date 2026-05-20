@@ -1,9 +1,9 @@
 /**
  * SecStorage managed-mode Worker.
  *
- * Auth: every request except `/auth/apple` and `/health` requires
+ * Auth: every request except `/auth/device` and `/health` requires
  * `Authorization: Bearer <sessionJwt>`. The JWT is HS256-signed by us and
- * carries the Apple `sub` as the subject.
+ * carries `device:<deviceTag>` as the subject.
  *
  * Bytes stored in R2 are already E2E-encrypted client-side. The server only
  * presigns the URLs, tracks per-user quota, and stores the encrypted index.
@@ -13,7 +13,6 @@ import type { Env, SessionClaims } from './types';
 import {
   signSessionJWT,
   verifySessionJWT,
-  verifyAppleIdentityToken,
 } from './jwt';
 import {
   ensureUser,
@@ -46,8 +45,7 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
 
   if (p === '/health') return json({ ok: true });
 
-  if (req.method === 'POST' && p === '/auth/apple') return authApple(req, env);
-  if (req.method === 'POST' && p === '/auth/dev') return authDev(req, env);
+  if (req.method === 'POST' && p === '/auth/device') return authDevice(req, env);
 
   // Everything below requires auth.
   const claims = await requireAuth(req, env);
@@ -103,40 +101,22 @@ function r2Path(env: Env, key: string): string {
 
 /* ---------------- handlers ---------------- */
 
-async function authApple(req: Request, env: Env): Promise<Response> {
-  const { identityToken } = (await req.json()) as { identityToken: string };
-  if (!identityToken) return json({ error: 'identityToken required' }, 400);
-  const claims = await verifyAppleIdentityToken(
-    identityToken,
-    env.APPLE_JWKS_URL,
-    env.APPLE_AUDIENCE,
-  );
-  await ensureUser(env, claims.sub, claims.email);
-  const jwt = await signSessionJWT(
-    { sub: claims.sub, email: claims.email },
-    env.JWT_SECRET,
-  );
-  return json({ token: jwt, userId: claims.sub });
-}
-
 /**
- * Dev login. Gated by env: requires `ALLOW_DEV_AUTH === "true"` AND the request
- * to carry the shared `DEV_AUTH_TOKEN` secret. Mints a session JWT for a
- * deterministic user id `dev-<deviceTag>` using the exact same signer the
- * production Apple flow uses. This is a permanent feature: it stays in the
- * codebase, and is safe because the env can be flipped off at any time.
+ * Device-bound anonymous auth. The client persists a random 128-bit hex
+ * `deviceTag` in Keychain; we map it to a stable user id `device:<tag>`.
+ * No email, no Apple, no shared secret — anyone can call this. The deviceTag
+ * is the only credential, and it lives in the device's secure enclave-backed
+ * Keychain. First call creates the user row; subsequent calls re-issue a JWT.
  */
-async function authDev(req: Request, env: Env): Promise<Response> {
-  if (env.ALLOW_DEV_AUTH !== 'true') return json({ error: 'dev auth disabled' }, 403);
-  const body = (await req.json().catch(() => ({}))) as {
-    token?: string;
-    deviceTag?: string;
-  };
-  if (!env.DEV_AUTH_TOKEN || body.token !== env.DEV_AUTH_TOKEN) {
-    return json({ error: 'bad dev token' }, 401);
-  }
-  const tag = (body.deviceTag ?? 'sim').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || 'sim';
-  const userId = `dev-${tag}`;
+async function authDevice(req: Request, env: Env): Promise<Response> {
+  const body = (await req.json().catch(() => ({}))) as { deviceTag?: string };
+  const raw = body.deviceTag ?? '';
+  // Accept hex/alphanum/_- of length 8..128. Tighter than the old dev path,
+  // because this is now the only auth surface and we never want exotic chars
+  // flowing into user ids / R2 prefixes.
+  const tag = raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+  if (tag.length < 8) return json({ error: 'deviceTag too short' }, 400);
+  const userId = `device:${tag}`;
   await ensureUser(env, userId, undefined);
   const jwt = await signSessionJWT(
     { sub: userId, email: undefined },
