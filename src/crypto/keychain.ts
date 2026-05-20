@@ -2,6 +2,24 @@ import * as Keychain from 'react-native-keychain';
 
 const MNEMONIC_SERVICE = 'app.secstorage.mnemonic';
 const BUCKET_SERVICE = 'app.secstorage.bucket';
+const REPORT_TOKEN_SERVICE = 'app.secstorage.reportToken';
+
+/** BYO usage report 用 bearer token (Keychain) */
+export async function saveReportToken(token: string): Promise<void> {
+  await Keychain.setGenericPassword('reportToken', token, {
+    service: REPORT_TOKEN_SERVICE,
+    accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
+}
+
+export async function loadReportToken(): Promise<string | null> {
+  const r = await Keychain.getGenericPassword({ service: REPORT_TOKEN_SERVICE });
+  return r ? r.password : null;
+}
+
+export async function clearReportToken(): Promise<void> {
+  await Keychain.resetGenericPassword({ service: REPORT_TOKEN_SERVICE });
+}
 
 export async function saveMnemonic(mnemonic: string): Promise<void> {
   await Keychain.setGenericPassword('mnemonic', mnemonic, {

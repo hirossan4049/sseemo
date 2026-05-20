@@ -6,6 +6,7 @@ import {
   Alert,
   Button,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { clearMnemonic, loadMnemonic } from '@/crypto/keychain';
 import {
@@ -22,7 +23,16 @@ import {
 } from '@/state/bucketStore';
 import { subscribe, fetchProducts } from '@/iap';
 import { refreshSubscriptionStatus } from '@/iap/verify';
-import { computeUsage, UsageStatus, checkAndNotify, reportUsage } from '@/state/usage';
+import {
+  computeUsage,
+  UsageStatus,
+  checkAndNotify,
+  reportUsage,
+  getReportEndpoint,
+  setReportEndpoint,
+  setReportToken,
+  hasReportToken,
+} from '@/state/usage';
 import { deleteAccount } from '@/auth/accountDelete';
 import { generate12WordMnemonic } from '@/crypto/mnemonic';
 import { saveMnemonic } from '@/crypto/keychain';
@@ -35,6 +45,8 @@ export default function SettingsScreen() {
   const [bucketIds, setBucketIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hasPp, setHasPp] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string>('');
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     refresh();
@@ -50,6 +62,8 @@ export default function SettingsScreen() {
     setBucketIds(await listBucketIds());
     setActiveId(await getActiveBucketId());
     setHasPp(await isPassphraseEnabled());
+    setReportUrl((await getReportEndpoint()) ?? '');
+    setHasToken(await hasReportToken());
     await checkAndNotify(u, level =>
       Alert.alert(
         `容量 ${level}% 超過`,
@@ -212,6 +226,44 @@ export default function SettingsScreen() {
         </Text>
         <Button title="¥480/月で容量解放" onPress={buy} />
       </Section>
+      <Section title="BYO 使用量レポート">
+        <Text style={s.muted}>
+          BYOバケット運用時に使用量を送る集計サーバ (任意)。
+        </Text>
+        <TextInput
+          placeholder="https://example.com/usage"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={reportUrl}
+          onChangeText={setReportUrl}
+          style={s.input}
+        />
+        <View style={s.row}>
+          <Button
+            title="保存"
+            onPress={async () => {
+              await setReportEndpoint(reportUrl.trim() || null);
+              Alert.alert('OK', reportUrl ? '保存しました' : '解除しました');
+            }}
+          />
+          <Button
+            title={hasToken ? 'トークン更新' : 'トークン設定'}
+            onPress={() => {
+              Alert.prompt?.(
+                'Bearer トークン',
+                '空欄で削除',
+                async (text: string) => {
+                  await setReportToken(text?.trim() ? text.trim() : null);
+                  setHasToken(!!text?.trim());
+                },
+              );
+            }}
+          />
+        </View>
+        <Text style={s.muted}>
+          {hasToken ? 'トークン: 設定済 (Keychain)' : 'トークン: 未設定'}
+        </Text>
+      </Section>
       <Section title="バケット">
         {bucketIds.map(id => (
           <View key={id} style={s.row}>
@@ -291,6 +343,13 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
   },
   muted: { color: '#888', marginBottom: 4 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+  },
   row: { flexDirection: 'row', gap: 8 },
   footer: { textAlign: 'center', color: '#aaa', padding: 24 },
 });

@@ -64,6 +64,13 @@ export async function deleteEntries(ids: string[]): Promise<void> {
   }
   await saveIndex(all.filter(e => !ids.includes(e.id)));
   await syncIndex();
+  // 削除も BYO 使用量レポートのトリガー (spec §10)
+  try {
+    const { reportUsageNow } = require('@/state/usage');
+    await reportUsageNow();
+  } catch {
+    /* best-effort */
+  }
 }
 
 export async function searchEntries(q: string): Promise<IndexEntry[]> {
