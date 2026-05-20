@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Button,
-  StyleSheet,
   Alert,
   ScrollView,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
 } from 'react-native';
 import { headBucket } from '@/s3/client';
 import { BucketCredentials } from '@/crypto/keychain';
@@ -14,8 +14,11 @@ import { addBucket } from '@/state/bucketStore';
 import { authApple } from '@/s3/managedClient';
 import { signInWithApple } from '@/auth/apple';
 import { MANAGED_BACKEND_URL } from '@/config';
+import { useTheme, type, radii } from '@/theme';
+import { Button, Field, Chip, Screen } from '@/components/ui';
 
 export default function BucketSetupScreen({ navigation }: any) {
+  const t = useTheme();
   const [mode, setMode] = useState<'managed' | 'byo'>('managed');
   const [endpoint, setEndpoint] = useState('https://s3.amazonaws.com');
   const [region, setRegion] = useState('us-east-1');
@@ -31,7 +34,10 @@ export default function BucketSetupScreen({ navigation }: any) {
       if (mode === 'managed') {
         const apple = await signInWithApple();
         if (!apple.identityToken) throw new Error('Apple identityToken missing');
-        const { token, userId } = await authApple(MANAGED_BACKEND_URL, apple.identityToken);
+        const { token, userId } = await authApple(
+          MANAGED_BACKEND_URL,
+          apple.identityToken,
+        );
         creds = {
           id: `managed-${userId}`,
           mode: 'managed',
@@ -66,129 +72,123 @@ export default function BucketSetupScreen({ navigation }: any) {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.root} testID="bucket-setup-screen">
-      <Text style={s.title}>どこに置きますか?</Text>
-      <Text style={s.lead}>
-        どちらを選んでも、安全さは変わりません。あとから変えられます。
-      </Text>
-      <View style={{ height: 16 }} />
-      <ModeCard
-        testID="bucket-managed-btn"
-        active={mode === 'managed'}
-        title="マネージド"
-        body="すぐ使えるおまかせプラン。ストレージ料金もアプリ料金に含まれます。"
-        onPress={() => setMode('managed')}
-      />
-      <View style={{ height: 8 }} />
-      <ModeCard
-        testID="bucket-byo-btn"
-        active={mode === 'byo'}
-        title="BYO"
-        body="お持ちのストレージにつなぎます。ストレージ料金はご利用先にお支払いください。"
-        onPress={() => setMode('byo')}
-      />
-      {mode === 'byo' && (
-        <View style={{ marginTop: 16 }}>
-          <Text style={s.subTitle}>つなぎ先を教えてください</Text>
-          <Text style={s.subLead}>
-            S3互換ならどこでも大丈夫です（Cloudflare R2、Wasabi、Backblazeなど）
+    <Screen testID="bucket-setup-screen">
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+          <Text style={[type.h1, { color: t.text, marginBottom: 12 }]}>
+            どこに置きますか？
           </Text>
-          <Field label="Endpoint" value={endpoint} onChange={setEndpoint} />
-          <Field label="Region" value={region} onChange={setRegion} />
-          <Field label="Bucket" value={bucket} onChange={setBucket} />
-          <Field label="Access Key ID" value={accessKey} onChange={setAccessKey} />
-          <Field
-            label="Secret Access Key"
-            value={secretKey}
-            onChange={setSecretKey}
-            secure
+          <Text style={{ fontSize: 14, color: t.text2, lineHeight: 24, marginBottom: 24 }}>
+            どちらを選んでも、安全さは変わりません。あとから変えられます。
+          </Text>
+
+          <BucketCard
+            testID="bucket-managed-btn"
+            selected={mode === 'managed'}
+            onPress={() => setMode('managed')}
+            tag="おまかせ"
+            title="マネージド"
+            free="5GB まで無料"
+            price="¥480 / 月"
+            desc="すぐ使えるおまかせプラン。ストレージ料金もアプリ料金に含まれます。"
           />
-        </View>
-      )}
-      <View style={{ height: 24 }} />
-      <Button
-        testID="bucket-continue-btn"
-        title={testing ? '...' : '次へ'}
-        onPress={proceed}
-        disabled={testing}
-      />
-    </ScrollView>
+          <View style={{ height: 12 }} />
+          <BucketCard
+            testID="bucket-byo-btn"
+            selected={mode === 'byo'}
+            onPress={() => setMode('byo')}
+            tag="ご自身で用意"
+            title="BYO・互換 S3"
+            free="10GB まで無料"
+            price="¥480 / 月"
+            desc="お持ちのストレージにつなぎます。ストレージ料金はご利用先にお支払いください。"
+          />
+
+          {mode === 'byo' && (
+            <View style={{ marginTop: 24 }}>
+              <Text style={[type.h3, { color: t.text, marginBottom: 4 }]}>
+                つなぎ先を教えてください
+              </Text>
+              <Text style={{ fontSize: 13, color: t.text2, marginBottom: 16, lineHeight: 20 }}>
+                S3 互換ならどこでも大丈夫です (Cloudflare R2、Wasabi、Backblaze など)
+              </Text>
+              <Field label="つなぎ先のアドレス" value={endpoint} onChange={setEndpoint} mono />
+              <Field label="地域" value={region} onChange={setRegion} mono />
+              <Field label="入れものの名前" value={bucket} onChange={setBucket} mono />
+              <Field label="アクセスキー" value={accessKey} onChange={setAccessKey} mono />
+              <Field label="ひみつのキー" value={secretKey} onChange={setSecretKey} secure mono />
+            </View>
+          )}
+
+          <View style={{ height: 24 }} />
+          <Button
+            testID="bucket-continue-btn"
+            title={testing ? 'つながりを確かめています…' : '次へ'}
+            onPress={proceed}
+            disabled={testing}
+          />
+        </ScrollView>
+      </SafeAreaView>
+    </Screen>
   );
 }
 
-function ModeCard({
-  active,
-  title,
-  body,
+function BucketCard({
+  selected,
   onPress,
+  tag,
+  title,
+  free,
+  price,
+  desc,
   testID,
 }: {
-  active: boolean;
-  title: string;
-  body: string;
+  selected: boolean;
   onPress: () => void;
+  tag: string;
+  title: string;
+  free: string;
+  price: string;
+  desc: string;
   testID?: string;
 }) {
+  const t = useTheme();
   return (
-    <Text
+    <Pressable
       testID={testID}
       onPress={onPress}
-      style={[s.card, active && s.cardActive]}
-    >
-      <Text style={s.cardTitle}>{active ? '◉ ' : '○ '}{title}</Text>
-      {'\n'}
-      <Text style={s.cardBody}>{body}</Text>
-    </Text>
+      style={{
+        backgroundColor: t.surface,
+        borderColor: selected ? t.text : t.border,
+        borderWidth: selected ? 1.5 : StyleSheet.hairlineWidth,
+        borderRadius: radii['2xl'],
+        padding: 18,
+      }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Text
+          style={{
+            fontSize: 10.5,
+            fontWeight: '700',
+            color: t.text3,
+            letterSpacing: 1,
+          }}>
+          {tag.toUpperCase()}
+        </Text>
+        <Chip label={free} tone="accent" />
+      </View>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 8,
+        }}>
+        <Text style={{ fontSize: 19, fontWeight: '600', color: t.text, letterSpacing: -0.3 }}>
+          {title}
+        </Text>
+        <Text style={[type.num, { fontSize: 12, color: t.text2 }]}>{price}</Text>
+      </View>
+      <Text style={{ fontSize: 13, color: t.text2, lineHeight: 21 }}>{desc}</Text>
+    </Pressable>
   );
 }
-
-function Field({
-  label,
-  value,
-  onChange,
-  secure,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  secure?: boolean;
-}) {
-  return (
-    <View style={{ marginVertical: 6 }}>
-      <Text style={s.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        secureTextEntry={secure}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={s.input}
-      />
-    </View>
-  );
-}
-
-const s = StyleSheet.create({
-  root: { padding: 24 },
-  title: { fontSize: 24, fontWeight: '700' },
-  lead: { fontSize: 14, color: '#666', marginTop: 8, lineHeight: 20 },
-  subTitle: { fontSize: 18, fontWeight: '600' },
-  subLead: { fontSize: 13, color: '#666', marginTop: 6, marginBottom: 8, lineHeight: 18 },
-  card: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 14,
-    backgroundColor: '#fff',
-  },
-  cardActive: { borderColor: '#222', backgroundColor: '#f8f8f8' },
-  cardTitle: { fontSize: 16, fontWeight: '600' },
-  cardBody: { fontSize: 13, color: '#666', lineHeight: 19 },
-  label: { fontSize: 12, color: '#666', marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 8,
-  },
-});
