@@ -12,6 +12,8 @@ export interface Env {
   R2_SECRET_ACCESS_KEY: string;
   PRESIGN_TTL_SECONDS: string;
   APP_STORE_SHARED_SECRET: string;
+  ALLOW_DEV_AUTH?: string;
+  DEV_AUTH_TOKEN?: string;
 }
 
 export interface SessionClaims {

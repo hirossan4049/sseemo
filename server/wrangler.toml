@@ -29,3 +29,5 @@ PRESIGN_TTL_SECONDS = "900"
 #   R2_ACCESS_KEY_ID        Cloudflare R2 access key (for SigV4 presign)
 #   R2_SECRET_ACCESS_KEY    Cloudflare R2 secret key
 #   APP_STORE_SHARED_SECRET App Store Connect shared secret (legacy verifyReceipt)
+#   ALLOW_DEV_AUTH          "true" enables POST /auth/dev (safe gate; off in prod)
+#   DEV_AUTH_TOKEN          Shared nonce required by POST /auth/dev requests

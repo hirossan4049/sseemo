@@ -47,6 +47,7 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
   if (p === '/health') return json({ ok: true });
 
   if (req.method === 'POST' && p === '/auth/apple') return authApple(req, env);
+  if (req.method === 'POST' && p === '/auth/dev') return authDev(req, env);
 
   // Everything below requires auth.
   const claims = await requireAuth(req, env);
@@ -116,6 +117,32 @@ async function authApple(req: Request, env: Env): Promise<Response> {
     env.JWT_SECRET,
   );
   return json({ token: jwt, userId: claims.sub });
+}
+
+/**
+ * Dev login. Gated by env: requires `ALLOW_DEV_AUTH === "true"` AND the request
+ * to carry the shared `DEV_AUTH_TOKEN` secret. Mints a session JWT for a
+ * deterministic user id `dev-<deviceTag>` using the exact same signer the
+ * production Apple flow uses. This is a permanent feature: it stays in the
+ * codebase, and is safe because the env can be flipped off at any time.
+ */
+async function authDev(req: Request, env: Env): Promise<Response> {
+  if (env.ALLOW_DEV_AUTH !== 'true') return json({ error: 'dev auth disabled' }, 403);
+  const body = (await req.json().catch(() => ({}))) as {
+    token?: string;
+    deviceTag?: string;
+  };
+  if (!env.DEV_AUTH_TOKEN || body.token !== env.DEV_AUTH_TOKEN) {
+    return json({ error: 'bad dev token' }, 401);
+  }
+  const tag = (body.deviceTag ?? 'sim').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || 'sim';
+  const userId = `dev-${tag}`;
+  await ensureUser(env, userId, undefined);
+  const jwt = await signSessionJWT(
+    { sub: userId, email: undefined },
+    env.JWT_SECRET,
+  );
+  return json({ token: jwt, userId });
 }
 
 async function iapVerify(req: Request, env: Env, c: SessionClaims): Promise<Response> {
