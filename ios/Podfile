@@ -22,5 +22,47 @@ target 'SecStorage' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
+
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'RNArgon2'
+
+      target.build_configurations.each do |build_configuration|
+        build_configuration.build_settings['SWIFT_INCLUDE_PATHS'] = [
+          '$(inherited)',
+          '"${PODS_CONFIGURATION_BUILD_DIR}/Argon2Swift"',
+          '"${PODS_ROOT}/Argon2Swift/Sources/Modules"',
+          '"${PODS_ROOT}/Argon2Swift/Sources/Argon2"',
+          '"${PODS_ROOT}/Argon2Swift/Sources/Argon2/include"'
+        ].join(' ')
+      end
+    end
+
+    rn_argon2_swift = File.expand_path(
+      '../node_modules/react-native-argon2/ios/RNArgon2.swift',
+      __dir__
+    )
+    if File.exist?(rn_argon2_swift)
+      contents = File.read(rn_argon2_swift)
+      unless contents.include?("import React\n")
+        File.write(
+          rn_argon2_swift,
+          contents.sub("import Foundation\n", "import Foundation\nimport React\n")
+        )
+      end
+    end
+
+    rn_argon2_umbrella_header = File.join(
+      installer.sandbox.root.to_s,
+      'Target Support Files',
+      'RNArgon2',
+      'RNArgon2-umbrella.h'
+    )
+    if File.exist?(rn_argon2_umbrella_header)
+      contents = File.read(rn_argon2_umbrella_header)
+      File.write(
+        rn_argon2_umbrella_header,
+        contents.gsub(%{#import "RNArgon2-Bridging-Header.h"\n}, '')
+      )
+    end
   end
 end
