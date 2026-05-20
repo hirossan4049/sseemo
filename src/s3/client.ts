@@ -12,6 +12,16 @@ function endpointHost(creds: BucketCredentials): string {
   return creds.endpoint.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
+function buildQuery(query?: Record<string, string>): string {
+  if (!query) return '';
+  return (
+    '?' +
+    Object.entries(query)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&')
+  );
+}
+
 function signedFetch(
   creds: BucketCredentials,
   method: string,
@@ -21,15 +31,9 @@ function signedFetch(
   extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   const host = endpointHost(creds);
-  const qs = query
-    ? '?' +
-      Object.entries(query)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-        .join('&')
-    : '';
   const opts: aws4.Request = {
     host,
-    path: `/${creds.bucket}${path}${qs}`,
+    path: `/${creds.bucket}${path}${buildQuery(query)}`,
     method,
     service: 's3',
     region: creds.region,
@@ -47,6 +51,16 @@ function signedFetch(
   });
 }
 
+async function ensureOk(r: Response, op: string): Promise<Response> {
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`${op} failed: ${r.status}${detail ? ` ${detail}` : ''}`);
+  }
+  return r;
+}
+
+const encodeKey = (key: string) => `/${encodeURI(key)}`;
+
 export async function headBucket(creds: BucketCredentials): Promise<boolean> {
   const r = await signedFetch(creds, 'HEAD', '/');
   return r.ok;
@@ -56,11 +70,10 @@ export async function listObjects(
   creds: BucketCredentials,
   prefix = '',
 ): Promise<S3Object[]> {
-  const r = await signedFetch(creds, 'GET', '/', {
-    'list-type': '2',
-    prefix,
-  });
-  if (!r.ok) throw new Error(`list failed: ${r.status}`);
+  const r = await ensureOk(
+    await signedFetch(creds, 'GET', '/', { 'list-type': '2', prefix }),
+    'list',
+  );
   const xml = await r.text();
   // 最低限のXMLパース (Contents 要素の抽出)
   const out: S3Object[] = [];
@@ -84,11 +97,13 @@ export async function putObject(
   body: Buffer,
   contentType = 'application/octet-stream',
 ): Promise<void> {
-  const r = await signedFetch(creds, 'PUT', `/${encodeURI(key)}`, undefined, body, {
-    'content-type': contentType,
-    'content-length': String(body.length),
-  });
-  if (!r.ok) throw new Error(`put failed: ${r.status} ${await r.text()}`);
+  await ensureOk(
+    await signedFetch(creds, 'PUT', encodeKey(key), undefined, body, {
+      'content-type': contentType,
+      'content-length': String(body.length),
+    }),
+    'put',
+  );
 }
 
 export async function getObject(
@@ -98,8 +113,10 @@ export async function getObject(
 ): Promise<Buffer> {
   const headers: Record<string, string> = {};
   if (range) headers.range = `bytes=${range[0]}-${range[1]}`;
-  const r = await signedFetch(creds, 'GET', `/${encodeURI(key)}`, undefined, undefined, headers);
-  if (!r.ok) throw new Error(`get failed: ${r.status}`);
+  const r = await ensureOk(
+    await signedFetch(creds, 'GET', encodeKey(key), undefined, undefined, headers),
+    'get',
+  );
   return Buffer.from(await r.arrayBuffer());
 }
 
@@ -107,8 +124,10 @@ export async function deleteObject(
   creds: BucketCredentials,
   key: string,
 ): Promise<void> {
-  const r = await signedFetch(creds, 'DELETE', `/${encodeURI(key)}`);
-  if (!r.ok) throw new Error(`delete failed: ${r.status}`);
+  await ensureOk(
+    await signedFetch(creds, 'DELETE', encodeKey(key)),
+    'delete',
+  );
 }
 
 /* ---------- マルチパートアップロード ---------- */
@@ -117,8 +136,10 @@ export async function createMultipartUpload(
   creds: BucketCredentials,
   key: string,
 ): Promise<string> {
-  const r = await signedFetch(creds, 'POST', `/${encodeURI(key)}`, { uploads: '' });
-  if (!r.ok) throw new Error(`createMultipart failed: ${r.status}`);
+  const r = await ensureOk(
+    await signedFetch(creds, 'POST', encodeKey(key), { uploads: '' }),
+    'createMultipart',
+  );
   const xml = await r.text();
   const m = xml.match(/<UploadId>([^<]+)<\/UploadId>/);
   if (!m) throw new Error('no UploadId');
@@ -132,14 +153,16 @@ export async function uploadPart(
   partNumber: number,
   body: Buffer,
 ): Promise<string> {
-  const r = await signedFetch(
-    creds,
-    'PUT',
-    `/${encodeURI(key)}`,
-    { partNumber: String(partNumber), uploadId },
-    body,
+  const r = await ensureOk(
+    await signedFetch(
+      creds,
+      'PUT',
+      encodeKey(key),
+      { partNumber: String(partNumber), uploadId },
+      body,
+    ),
+    'uploadPart',
   );
-  if (!r.ok) throw new Error(`uploadPart failed: ${r.status}`);
   const etag = r.headers.get('etag') ?? '';
   return etag.replace(/"/g, '');
 }
@@ -159,14 +182,10 @@ export async function completeMultipartUpload(
       )
       .join('') +
     '</CompleteMultipartUpload>';
-  const r = await signedFetch(
-    creds,
-    'POST',
-    `/${encodeURI(key)}`,
-    { uploadId },
-    body,
+  await ensureOk(
+    await signedFetch(creds, 'POST', encodeKey(key), { uploadId }, body),
+    'complete',
   );
-  if (!r.ok) throw new Error(`complete failed: ${r.status}`);
 }
 
 export async function abortMultipartUpload(
@@ -174,5 +193,5 @@ export async function abortMultipartUpload(
   key: string,
   uploadId: string,
 ): Promise<void> {
-  await signedFetch(creds, 'DELETE', `/${encodeURI(key)}`, { uploadId });
+  await signedFetch(creds, 'DELETE', encodeKey(key), { uploadId });
 }
