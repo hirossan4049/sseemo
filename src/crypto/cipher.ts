@@ -25,19 +25,38 @@ export interface FileMeta {
   tags?: string[];
 }
 
-function gcmEncrypt(key: Buffer, nonce: Buffer, plaintext: Buffer): Buffer {
+/**
+ * AES-256-GCM raw primitives: `ctAndTag = ciphertext || tag(16)`。
+ * チャンク内部用 (nonce はチャンク nonce 規約から導出するため別管理)。
+ */
+export function gcmEncrypt(key: Buffer, nonce: Buffer, plaintext: Buffer): Buffer {
   const cipher = createCipheriv('aes-256-gcm', key, nonce);
   const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([ct, tag]);
 }
 
-function gcmDecrypt(key: Buffer, nonce: Buffer, ctAndTag: Buffer): Buffer {
+export function gcmDecrypt(key: Buffer, nonce: Buffer, ctAndTag: Buffer): Buffer {
   const ct = ctAndTag.slice(0, ctAndTag.length - TAG_SIZE);
   const tag = ctAndTag.slice(ctAndTag.length - TAG_SIZE);
   const dec = createDecipheriv('aes-256-gcm', key, nonce);
   dec.setAuthTag(tag);
   return Buffer.concat([dec.update(ct), dec.final()]);
+}
+
+/**
+ * 単発の自己完結 blob を作る: `nonce(12) || ct || tag(16)`。
+ * インデックスやサムネのような「メタデータ無しの暗号化」向け。
+ */
+export function sealGcm(key: Buffer, plaintext: Buffer): Buffer {
+  const nonce = Buffer.from(randomBytes(NONCE_SIZE) as any);
+  return Buffer.concat([nonce, gcmEncrypt(key, nonce, plaintext)]);
+}
+
+export function openGcm(key: Buffer, blob: Buffer): Buffer {
+  const nonce = blob.slice(0, NONCE_SIZE);
+  const ctTag = blob.slice(NONCE_SIZE);
+  return gcmDecrypt(key, nonce, ctTag);
 }
 
 export interface EncryptStreamOptions {
@@ -129,4 +148,3 @@ export class FileDecryptor {
   }
 }
 
-export const __cryptoInternals = { gcmEncrypt, gcmDecrypt };

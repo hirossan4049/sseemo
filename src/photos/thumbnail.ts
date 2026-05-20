@@ -1,7 +1,5 @@
 import RNFS from 'react-native-fs';
-import QuickCrypto from 'react-native-quick-crypto';
-const { createCipheriv, createDecipheriv, randomBytes } = QuickCrypto;
-import { NONCE_SIZE, TAG_SIZE } from '@/crypto/format';
+import { openGcm, sealGcm } from '@/crypto/cipher';
 import { deriveThumbKey } from '@/crypto/kdf';
 import { BucketCredentials } from '@/crypto/keychain';
 import { getObject, putObject } from '@/s3/client';
@@ -30,12 +28,7 @@ export async function saveThumb(
   smallJpeg: Buffer,
 ): Promise<void> {
   await ensureCache();
-  const key = deriveThumbKey(master);
-  const nonce = Buffer.from(randomBytes(NONCE_SIZE) as any);
-  const c = createCipheriv('aes-256-gcm', key, nonce);
-  const ct = Buffer.concat([c.update(smallJpeg), c.final()]);
-  const tag = c.getAuthTag();
-  const blob = Buffer.concat([nonce, ct, tag]);
+  const blob = sealGcm(deriveThumbKey(master), smallJpeg);
   await RNFS.writeFile(
     `${CACHE_DIR}/${id}`,
     blob.toString('base64'),
@@ -62,11 +55,5 @@ export async function loadThumb(
       return null;
     }
   }
-  const key = deriveThumbKey(master);
-  const nonce = blob.slice(0, NONCE_SIZE);
-  const tag = blob.slice(blob.length - TAG_SIZE);
-  const ct = blob.slice(NONCE_SIZE, blob.length - TAG_SIZE);
-  const d = createDecipheriv('aes-256-gcm', key, nonce);
-  d.setAuthTag(tag);
-  return Buffer.concat([d.update(ct), d.final()]);
+  return openGcm(deriveThumbKey(master), blob);
 }
