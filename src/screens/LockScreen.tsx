@@ -1,21 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Button,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, Alert, StyleSheet } from 'react-native';
 import * as Keychain from 'react-native-keychain';
 import { isPassphraseEnabled, unlock } from '@/state/keyStore';
+import { useTheme, radii, type } from '@/theme';
+import { Button, Screen, BrandMark, Wordmark } from '@/components/ui';
 
 /**
- * 生体認証ロック。
- * - パスフレーズ未設定 → Keychain の biometryPrompt だけで解錠
- * - パスフレーズ設定済 → パスフレーズ入力 + Keychain
+ * Biometric lock.
+ * - Without passphrase → Keychain biometryPrompt only
+ * - With passphrase    → user passphrase + Keychain
  */
 export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
+  const t = useTheme();
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [pp, setPp] = useState('');
 
@@ -26,7 +22,6 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
         return;
       }
       try {
-        // 触ることで biometry プロンプト発火
         await Keychain.getGenericPassword({
           service: 'app.secstorage.mnemonic',
           authenticationPrompt: { title: 'sseemo のロック解除' },
@@ -44,32 +39,38 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   }
 
   return (
-    <View style={s.root}>
-      <Text style={s.title}>🔒 sseemo</Text>
-      {needsPassphrase && (
-        <>
-          <TextInput
-            placeholder="パスフレーズ"
-            value={pp}
-            onChangeText={setPp}
-            secureTextEntry
-            style={s.input}
-          />
-          <Button title="解錠" onPress={tryUnlock} />
-        </>
-      )}
-    </View>
+    <Screen>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 24 }}>
+        <View style={{ alignItems: 'center', gap: 12 }}>
+          <BrandMark size={84} />
+          <Wordmark size={28} />
+        </View>
+        <Text style={[type.bodySmall, { color: t.text2 }]}>
+          {needsPassphrase ? '合言葉を入力してください' : '生体認証で解錠してください'}
+        </Text>
+        {needsPassphrase && (
+          <View style={{ width: '100%', maxWidth: 320, gap: 12 }}>
+            <TextInput
+              placeholder="パスフレーズ"
+              placeholderTextColor={t.text3}
+              value={pp}
+              onChangeText={setPp}
+              secureTextEntry
+              style={{
+                height: 44,
+                paddingHorizontal: 14,
+                backgroundColor: t.surface,
+                borderColor: t.borderStrong,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderRadius: radii.lg,
+                color: t.text,
+                fontSize: 15,
+              }}
+            />
+            <Button title="解錠" onPress={tryUnlock} />
+          </View>
+        )}
+      </View>
+    </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'center', padding: 32 },
-  title: { fontSize: 28, textAlign: 'center', marginBottom: 32 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 12,
-  },
-});

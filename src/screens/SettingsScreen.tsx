@@ -2,13 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Alert,
-  Button,
   ScrollView,
   TextInput,
   Share,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import RNFS from 'react-native-fs';
 import QuickCrypto from 'react-native-quick-crypto';
@@ -40,11 +39,24 @@ import {
 import { deleteAccount } from '@/auth/accountDelete';
 import { generate12WordMnemonic } from '@/crypto/mnemonic';
 import { saveMnemonic } from '@/crypto/keychain';
-
 import { addBucket } from '@/state/bucketStore';
 import { headBucket } from '@/s3/client';
+import { useTheme, radii, type } from '@/theme';
+import {
+  Screen,
+  NavBar,
+  Card,
+  CardRow,
+  Chip,
+  Button,
+  SectionLabel,
+  UsageBar,
+  Wordmark,
+  BrandMark,
+} from '@/components/ui';
 
 export default function SettingsScreen() {
+  const t = useTheme();
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const [bucketIds, setBucketIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -84,11 +96,6 @@ export default function SettingsScreen() {
     Alert.alert('リカバリーフレーズ', m);
   }
 
-  /**
-   * spec §14: 12ワードをファイルとして書き出し、Share シートで Files /
-   * AirDrop / iCloud / 印刷など好きな宛先にユーザーが送れるようにする。
-   * 終了後にテンポラリファイルを削除する。
-   */
   async function exportMnemonicToFile() {
     const m = await loadMnemonic();
     if (!m) {
@@ -109,11 +116,7 @@ export default function SettingsScreen() {
       await Share.share(
         Platform.OS === 'ios'
           ? { url: `file://${out}` }
-          : {
-              url: `file://${out}`,
-              message: body,
-              title: 'sseemo Recovery Phrase',
-            },
+          : { url: `file://${out}`, message: body, title: 'sseemo Recovery Phrase' },
       );
     } finally {
       const ttlMs = Platform.OS === 'android' ? 5000 : 0;
@@ -124,36 +127,28 @@ export default function SettingsScreen() {
   }
 
   async function regenerate() {
-    Alert.alert(
-      '鍵の再生成',
-      '既存データは復号不可になります。本当に再生成しますか？',
-      [
-        { text: 'キャンセル' },
-        {
-          text: '再生成',
-          style: 'destructive',
-          onPress: async () => {
-            const m = generate12WordMnemonic();
-            await saveMnemonic(m);
-            lock();
-            Alert.alert('新しいフレーズ', m);
-          },
+    Alert.alert('鍵の再生成', '既存データは復号不可になります。本当に再生成しますか?', [
+      { text: 'キャンセル' },
+      {
+        text: '再生成',
+        style: 'destructive',
+        onPress: async () => {
+          const m = generate12WordMnemonic();
+          await saveMnemonic(m);
+          lock();
+          Alert.alert('新しいフレーズ', m);
         },
-      ],
-    );
+      },
+    ]);
   }
 
   async function importMnemonic() {
-    Alert.prompt?.(
-      'インポート',
-      '12語をスペース区切りで入力',
-      async (text: string) => {
-        if (!text) return;
-        await saveMnemonic(text.trim().toLowerCase());
-        lock();
-        Alert.alert('完了', '再起動してください');
-      },
-    );
+    Alert.prompt?.('インポート', '12語をスペース区切りで入力', async (text: string) => {
+      if (!text) return;
+      await saveMnemonic(text.trim().toLowerCase());
+      lock();
+      Alert.alert('完了', '再起動してください');
+    });
   }
 
   async function addManagedBucket() {
@@ -228,192 +223,390 @@ export default function SettingsScreen() {
   }
 
   async function purge() {
-    Alert.alert(
-      'すべて消しますか?',
-      'お預かりしていたものは戻せません。',
-      [
-        { text: 'やめておく' },
-        {
-          text: '消す',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteAccount();
-            Alert.alert(
-              '消しました',
-              'お支払いは App Store > サブスクリプション から止めてください。',
-            );
-          },
+    Alert.alert('すべて消しますか?', 'お預かりしていたものは戻せません。', [
+      { text: 'やめておく' },
+      {
+        text: '消す',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteAccount();
+          Alert.alert(
+            '消しました',
+            'お支払いは App Store > サブスクリプション から止めてください。',
+          );
         },
-      ],
-    );
+      },
+    ]);
   }
 
-  if (!usage) return <View />;
+  if (!usage)
+    return (
+      <Screen testID="settings-screen">
+        <View />
+      </Screen>
+    );
+
+  const usagePct = usage.pct / 100;
+  const usageTone: 'default' | 'warn' | 'danger' =
+    usage.pct >= 95 ? 'danger' : usage.pct >= 80 ? 'warn' : 'default';
 
   return (
-    <ScrollView style={s.root} testID="settings-screen">
-      <Section title="使っている容量">
-        <Text>
-          {formatSize(usage.used)} / {formatSize(usage.limit)} (
-          {usage.pct.toFixed(1)}%)
-        </Text>
-        {usage.pct >= 80 && usage.pct < 95 && (
-          <Text style={{ color: '#c93' }}>
-            あと少しで上限です。いっぱいになると、新しいファイルは置けなくなります。
-          </Text>
-        )}
-        {usage.pct >= 95 && !usage.paid && (
-          <Text style={{ color: '#c33' }}>
-            もうすぐいっぱいです。お支払いに進むか、いらないものを片付けてみてください。
-          </Text>
-        )}
-        {usage.hardStopped && (
-          <Text style={{ color: '#c33', fontWeight: '700' }}>
-            いっぱいです。今は新しいファイルを置けません。
-          </Text>
-        )}
-      </Section>
-      <Section title="お支払い">
-        <Text style={s.muted}>
-          状態: {usage.paid ? 'ご利用中' : '無料の範囲内'}
-        </Text>
-        <Button title="¥480/月で容量を広げる" onPress={buy} />
-      </Section>
-      <Section title="BYO 使用量レポート">
-        <Text style={s.muted}>
-          BYOバケット運用時に使用量を送る集計サーバ (任意)。
-        </Text>
-        <TextInput
-          placeholder="https://example.com/usage"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={reportUrl}
-          onChangeText={setReportUrl}
-          style={s.input}
-        />
-        <View style={s.row}>
-          <Button
-            title="保存"
-            onPress={async () => {
-              await setReportEndpoint(reportUrl.trim() || null);
-              Alert.alert('OK', reportUrl ? '保存しました' : '解除しました');
-            }}
-          />
-          <Button
-            title={hasToken ? 'トークン更新' : 'トークン設定'}
-            onPress={() => {
-              Alert.prompt?.(
-                'Bearer トークン',
-                '空欄で削除',
-                async (text: string) => {
-                  await setReportToken(text?.trim() ? text.trim() : null);
-                  setHasToken(!!text?.trim());
-                },
-              );
-            }}
-          />
+    <Screen testID="settings-screen">
+      <NavBar sub="設定" title="あなたのアカウント" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Account card */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
+          <View
+            style={{
+              backgroundColor: t.surface,
+              borderColor: t.border,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderRadius: radii['2xl'],
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+            }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                backgroundColor: t.brand1,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>SY</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: t.text }} numberOfLines={1}>
+                {usage.paid ? 'Apple ID で接続中' : 'Apple ID で接続中'}
+              </Text>
+              <Text style={{ fontSize: 12, color: t.text2, marginTop: 2 }}>
+                Sign in with Apple
+              </Text>
+            </View>
+            <Chip
+              label={usage.paid ? 'ご利用中' : '無料の範囲内'}
+              tone={usage.paid ? 'accent' : 'default'}
+            />
+          </View>
         </View>
-        <Text style={s.muted}>
-          {hasToken ? 'トークン: 設定済 (Keychain)' : 'トークン: 未設定'}
-        </Text>
-      </Section>
-      <Section title="バケット">
-        {bucketIds.map(id => (
-          <View key={id} style={s.row}>
-            <Text style={{ flex: 1 }}>
-              {id} {id === activeId ? '(active)' : ''}
-            </Text>
-            {id !== activeId && (
-              <Button
-                title="切替"
-                onPress={async () => {
-                  await setActiveBucketId(id);
-                  refresh();
-                }}
-              />
+
+        {/* Usage */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
+          <View
+            style={{
+              backgroundColor: t.surface,
+              borderColor: t.border,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderRadius: radii['2xl'],
+              padding: 16,
+            }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}>
+              <View>
+                <Text style={[type.sectionLabel, { color: t.text3, padding: 0 }]}>
+                  今の使い方
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 6 }}>
+                  <Text style={[type.num, { fontSize: 26, fontWeight: '700', color: t.text }]}>
+                    {formatSizeShort(usage.used)}
+                  </Text>
+                  <Text style={[type.num, { fontSize: 14, color: t.text2 }]}>
+                    / {formatSizeShort(usage.limit)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <UsageBar value={usagePct} tone={usageTone} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+              <Text style={{ fontSize: 11, color: t.text2 }}>鍵をかけたあとの大きさで計算</Text>
+              {usage.pct >= 80 && (
+                <Text style={{ fontSize: 11, color: t.warning }}>
+                  あと少しでいっぱいです
+                </Text>
+              )}
+            </View>
+            {usage.hardStopped && (
+              <Text style={{ color: t.danger, fontWeight: '700', marginTop: 8, fontSize: 12 }}>
+                いっぱいです。今は新しいファイルを置けません。
+              </Text>
             )}
           </View>
-        ))}
-        <View style={{ height: 6 }} />
-        <Button title="マネージドバケットを追加" onPress={addManagedBucket} />
-        <View style={{ height: 6 }} />
-        <Button title="互換S3バケットを追加" onPress={addByoBucket} />
-      </Section>
-      <Section title="鍵">
-        <Button
-          testID="settings-export-mnemonic-btn"
-          title="リカバリーフレーズを表示"
-          onPress={exportMnemonic}
-        />
-        <View style={{ height: 6 }} />
-        <Button
-          testID="settings-export-mnemonic-file-btn"
-          title="ファイルに保存"
-          onPress={exportMnemonicToFile}
-        />
-        <View style={{ height: 6 }} />
-        <Button title="インポート" onPress={importMnemonic} />
-        <View style={{ height: 6 }} />
-        <Button title="再生成" color="#c33" onPress={regenerate} />
-      </Section>
-      <Section title="セキュリティ">
-        <Text style={s.muted}>
-          パスフレーズ: {hasPp ? '設定済' : '未設定'}
-        </Text>
-        {!hasPp && <Button title="パスフレーズを設定" onPress={enablePp} />}
-        <View style={{ height: 6 }} />
-        <Text style={s.muted}>自動ロック:</Text>
-        <View style={s.row}>
-          <Button title="30s" onPress={() => setAutoLock(30)} />
-          <Button title="5m" onPress={() => setAutoLock(300)} />
-          <Button title="1h" onPress={() => setAutoLock(3600)} />
         </View>
-      </Section>
-      <Section title="アカウント">
-        <Button
-          testID="settings-delete-account-btn"
-          title="やめる（すべて消す）"
-          color="#c33"
-          onPress={purge}
-        />
-      </Section>
-      <Text style={s.footer}>sseemo v0.1 — 鍵はあなたが持っていてください。</Text>
-    </ScrollView>
+
+        {/* Buckets */}
+        <SectionLabel>保管場所</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            {bucketIds.map((id, i, a) => (
+              <CardRow
+                key={id}
+                last={i === a.length - 1}
+                onPress={async () => {
+                  if (id !== activeId) {
+                    await setActiveBucketId(id);
+                    refresh();
+                  }
+                }}>
+                <View
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    backgroundColor: t.surface2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Text style={{ color: t.text2, fontSize: 14 }}>☁</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: t.text }}>{id}</Text>
+                  {id === activeId && (
+                    <Text style={{ fontSize: 12, color: t.text3, marginTop: 1 }}>
+                      今使っている
+                    </Text>
+                  )}
+                </View>
+                {id === activeId && <Chip label="アクティブ" tone="accent" />}
+              </CardRow>
+            ))}
+          </Card>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <Button small variant="secondary" title="おまかせを追加" onPress={addManagedBucket} style={{ flex: 1 }} />
+            <Button small variant="secondary" title="互換S3を追加" onPress={addByoBucket} style={{ flex: 1 }} />
+          </View>
+        </View>
+
+        {/* Keys */}
+        <SectionLabel>合言葉と鍵</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            <CardRow onPress={exportMnemonic} testID="settings-export-mnemonic-btn">
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.text2 }}>🔑</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={rowTitle(t)}>リカバリーフレーズを表示</Text>
+                <Text style={rowSub(t)}>画面に12語を表示します</Text>
+              </View>
+              <Text style={{ color: t.text3 }}>›</Text>
+            </CardRow>
+            <CardRow onPress={exportMnemonicToFile} testID="settings-export-mnemonic-file-btn">
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.text2 }}>⤓</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={rowTitle(t)}>ファイルに保存</Text>
+                <Text style={rowSub(t)}>共有シートで AirDrop / iCloud / 印刷</Text>
+              </View>
+              <Text style={{ color: t.text3 }}>›</Text>
+            </CardRow>
+            <CardRow onPress={importMnemonic}>
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.text2 }}>⤒</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={rowTitle(t)}>インポート</Text>
+                <Text style={rowSub(t)}>別端末からフレーズを取り込み</Text>
+              </View>
+              <Text style={{ color: t.text3 }}>›</Text>
+            </CardRow>
+            <CardRow onPress={regenerate} last>
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.danger }}>↻</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, color: t.danger }}>鍵を作り直す</Text>
+                <Text style={rowSub(t)}>既存データは復号不可になります</Text>
+              </View>
+            </CardRow>
+          </Card>
+        </View>
+
+        {/* Lock */}
+        <SectionLabel>ロック</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            <CardRow onPress={!hasPp ? enablePp : undefined}>
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.text2 }}>🔐</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={rowTitle(t)}>パスフレーズで開く</Text>
+                <Text style={rowSub(t)}>{hasPp ? '設定済' : '未設定'}</Text>
+              </View>
+              <Text style={{ color: t.text3 }}>›</Text>
+            </CardRow>
+            <CardRow last>
+              <View style={iconBox(t)}>
+                <Text style={{ color: t.text2 }}>⏱</Text>
+              </View>
+              <Text style={{ flex: 1, fontSize: 14, color: t.text }}>自動ロック</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Button small variant="secondary" title="30秒" onPress={() => setAutoLock(30)} />
+                <Button small variant="secondary" title="5分" onPress={() => setAutoLock(300)} />
+                <Button small variant="secondary" title="1時間" onPress={() => setAutoLock(3600)} />
+              </View>
+            </CardRow>
+          </Card>
+        </View>
+
+        {/* Payment */}
+        <SectionLabel>お支払い</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            <CardRow>
+              <Text style={{ flex: 1, color: t.text2 }}>状態</Text>
+              <Text style={{ color: t.text, fontWeight: '500' }}>
+                {usage.paid ? 'ご利用中' : '無料の範囲内'}
+              </Text>
+            </CardRow>
+            <CardRow last onPress={buy}>
+              <Text style={{ flex: 1, color: t.text2 }}>容量を広げる</Text>
+              <Text style={[type.num, { color: t.text, fontWeight: '500' }]}>¥480 / 月</Text>
+              <Text style={{ color: t.text3, marginLeft: 8 }}>›</Text>
+            </CardRow>
+          </Card>
+        </View>
+
+        {/* BYO Usage report */}
+        <SectionLabel>BYO 使用量レポート (任意)</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            <View style={{ padding: 14 }}>
+              <Text style={{ fontSize: 12, color: t.text2, marginBottom: 8, lineHeight: 18 }}>
+                BYO バケット運用時に使用量を送る集計サーバ
+              </Text>
+              <TextInput
+                placeholder="https://example.com/usage"
+                placeholderTextColor={t.text3}
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={reportUrl}
+                onChangeText={setReportUrl}
+                style={{
+                  height: 40,
+                  borderColor: t.borderStrong,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderRadius: radii.md,
+                  paddingHorizontal: 12,
+                  color: t.text,
+                  fontSize: 13,
+                  fontFamily: type.mono.fontFamily,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <Button
+                  small
+                  variant="secondary"
+                  title="保存"
+                  style={{ flex: 1 }}
+                  onPress={async () => {
+                    await setReportEndpoint(reportUrl.trim() || null);
+                    Alert.alert('OK', reportUrl ? '保存しました' : '解除しました');
+                  }}
+                />
+                <Button
+                  small
+                  variant="secondary"
+                  style={{ flex: 1 }}
+                  title={hasToken ? 'トークン更新' : 'トークン設定'}
+                  onPress={() => {
+                    Alert.prompt?.('Bearer トークン', '空欄で削除', async (text: string) => {
+                      await setReportToken(text?.trim() ? text.trim() : null);
+                      setHasToken(!!text?.trim());
+                    });
+                  }}
+                />
+              </View>
+              <Text style={{ marginTop: 6, fontSize: 11, color: t.text3 }}>
+                {hasToken ? 'トークン: 設定済 (Keychain)' : 'トークン: 未設定'}
+              </Text>
+            </View>
+          </Card>
+        </View>
+
+        {/* Recovery banner */}
+        <SectionLabel>もしのときのために</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <View
+            style={{
+              backgroundColor: t.surface,
+              borderColor: t.border,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderRadius: radii['2xl'],
+              padding: 16,
+            }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Text style={{ color: t.accentText, fontSize: 16 }}>🛡</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: t.text }}>
+                アプリがなくなっても、取り出せます
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12.5, color: t.text2, lineHeight: 20 }}>
+              鍵と、復元用の道具を公開しています。もしこのアプリが使えなくなっても、あなたのデータは取り戻せます。
+            </Text>
+          </View>
+        </View>
+
+        {/* Danger */}
+        <SectionLabel>データを消す</SectionLabel>
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            <CardRow onPress={purge} testID="settings-delete-account-btn" last>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, color: t.danger }}>アカウントを消す</Text>
+                <Text style={rowSub(t)}>おまかせプランのデータはすぐに消えます</Text>
+              </View>
+              <Text style={{ color: t.danger }}>›</Text>
+            </CardRow>
+          </Card>
+        </View>
+
+        {/* Footer */}
+        <View style={{ alignItems: 'center', paddingTop: 32, gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <BrandMark size={28} />
+            <Wordmark size={16} />
+          </View>
+          <Text style={[type.num, { fontSize: 11, color: t.text3 }]}>0.1.0</Text>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
-function Section({ title, children }: any) {
-  return (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
+function iconBox(t: ReturnType<typeof useTheme>) {
+  return {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: t.surface2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  };
 }
 
-function formatSize(n: number): string {
+function rowTitle(t: ReturnType<typeof useTheme>) {
+  return { fontSize: 14, fontWeight: '500' as const, color: t.text };
+}
+
+function rowSub(t: ReturnType<typeof useTheme>) {
+  return { fontSize: 12, color: t.text3, marginTop: 1 };
+}
+
+function formatSizeShort(n: number): string {
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(0)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
+  return `${(n / 1024 ** 3).toFixed(1)} GB`;
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1 },
-  section: { padding: 16, borderBottomWidth: 1, borderColor: '#eee' },
-  sectionTitle: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  muted: { color: '#888', marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
-  },
-  row: { flexDirection: 'row', gap: 8 },
-  footer: { textAlign: 'center', color: '#aaa', padding: 24 },
-});
+// Re-export to satisfy unused imports (kept for parity with old file)
+export const _unused = { clearMnemonic };
