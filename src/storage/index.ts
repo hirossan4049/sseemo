@@ -25,24 +25,52 @@ export interface IndexEntry {
  */
 const KEY_V2 = '@secstorage/index/v2';
 const KEY_V1_LEGACY = '@secstorage/index/v1';
+const MIGRATION_FLAG = '@secstorage/index/v1MigratedAt';
 
-async function dropLegacyPlaintext(): Promise<void> {
-  // 旧バージョンが書いた平文 JSON を残しておくと spec §5 違反のままに
-  // なるので積極的に消す。
+/**
+ * v1 (平文 JSON) → v2 (sealGcm) 1-shot 移行。
+ * - 起動直後の `loadIndex()` 1回だけ呼ばれることを想定
+ * - 平文をパースできれば再暗号化して書き戻し → v1 を unlink
+ * - パース不能なら警告ログのみ。次回以降は MIGRATION_FLAG により再試行しない
+ */
+async function migrateV1IfNeeded(): Promise<IndexEntry[] | null> {
+  const done = await AsyncStorage.getItem(MIGRATION_FLAG);
+  if (done) return null;
+  const v1 = await AsyncStorage.getItem(KEY_V1_LEGACY);
+  if (!v1) {
+    await AsyncStorage.setItem(MIGRATION_FLAG, String(Date.now()));
+    return null;
+  }
+  const master = getMaster();
+  if (!master) {
+    // 鍵未解錠時は移行不能。フラグは立てない (次回再試行)。
+    return null;
+  }
   try {
+    const parsed = JSON.parse(v1) as IndexEntry[];
+    if (!Array.isArray(parsed)) throw new Error('v1 index not array');
+    const blob = sealGcm(deriveIndexKey(master), Buffer.from(JSON.stringify(parsed), 'utf8'));
+    await AsyncStorage.setItem(KEY_V2, blob.toString('base64'));
     await AsyncStorage.removeItem(KEY_V1_LEGACY);
-  } catch {
-    /* ignore */
+    await AsyncStorage.setItem(MIGRATION_FLAG, String(Date.now()));
+    return parsed;
+  } catch (e) {
+    // パース失敗 = 既に壊れている。リカバーは remote からの再構築に任せる。
+    console.warn('[storage/index] v1 migration skipped (parse failed)', e);
+    await AsyncStorage.removeItem(KEY_V1_LEGACY).catch(() => {});
+    await AsyncStorage.setItem(MIGRATION_FLAG, String(Date.now()));
+    return null;
   }
 }
 
 export async function loadIndex(): Promise<IndexEntry[]> {
   const master = getMaster();
   if (!master) return [];
+  // v1 平文があれば先に v2 へ昇格
+  const migrated = await migrateV1IfNeeded();
   const raw = await AsyncStorage.getItem(KEY_V2);
   if (!raw) {
-    await dropLegacyPlaintext();
-    return [];
+    return migrated ?? [];
   }
   try {
     const blob = Buffer.from(raw, 'base64');
@@ -63,7 +91,8 @@ export async function saveIndex(entries: IndexEntry[]): Promise<void> {
   const plain = Buffer.from(JSON.stringify(entries), 'utf8');
   const blob = sealGcm(deriveIndexKey(master), plain);
   await AsyncStorage.setItem(KEY_V2, blob.toString('base64'));
-  await dropLegacyPlaintext();
+  // v1 が残っていたら確実に消す (save 経路でも保険)
+  await AsyncStorage.removeItem(KEY_V1_LEGACY).catch(() => {});
 }
 
 export async function addEntry(e: IndexEntry): Promise<void> {
