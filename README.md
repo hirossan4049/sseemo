@@ -1,6 +1,8 @@
-# SecStorage
+# sseemo
 
 S3互換ストレージ向け E2E 暗号化バックアップアプリ (React Native / iOS)。
+
+> 鍵はあなたが持っていてください。アプリがなくなっても、データは取り出せます。
 
 ## 構成
 
@@ -15,11 +17,12 @@ src/
   state/       鍵 / バケット状態
   auth/        Sign in with Apple
   iap/         App Store IAP (¥480/月/バケット)
-  photos/      写真ライブラリ取り込み
+  photos/      写真ライブラリ取り込み + サムネイル生成
   navigation/  3タブ + オンボーディング
   screens/     UI
 cli/
   decrypt.ts   アプリ非依存の復号 CLI
+server/        マネージドモード用 Cloudflare Workers (別 README)
 ```
 
 ## セットアップ
@@ -39,13 +42,24 @@ echo "abandon ability ... about" > mnemonic.txt
 npx ts-node cli/decrypt.ts mnemonic.txt photo.ssf photo.jpg
 ```
 
-## 残作業 (ネイティブ側)
+> 注: 暗号化フォーマットの HKDF salt 識別子は `"SecStorage/v1"` のまま固定。
+> 既存ユーザーデータの互換性のため、アプリ名のリブランドに合わせては変更しない。
 
-- `ios/Info.plist` に `NSPhotoLibraryUsageDescription` を追加
-- Sign in with Apple capability を Xcode で有効化
-- IAP product ID `app.secstorage.bucket.monthly` を App Store Connect 登録
-- バックグラウンドアップロードは `react-native-background-upload` で iOS NSURLSession Background を利用 (Info.plist に `UIBackgroundModes`)
-- マネージドモードのサーバー側 API (使用量計測 / 課金検証) は別リポジトリ
+## ネイティブ側セットアップ状態
+
+| 項目 | 状態 |
+| --- | --- |
+| `NSPhotoLibraryUsageDescription` / `NSFaceIDUsageDescription` | ✅ `ios/SecStorage/Info.plist` |
+| Sign in with Apple capability | ✅ `ios/SecStorage/SecStorage.entitlements` |
+| In-App Purchase capability | ✅ `ios/SecStorage/SecStorage.entitlements` |
+| `UIBackgroundModes` (`fetch` / `processing`) | ✅ Info.plist |
+| `BGTaskSchedulerPermittedIdentifiers` (`app.secstorage.autoimport`) | ✅ Info.plist |
+| URL Scheme (`secstorage` / `secstoragedev`) | ✅ Info.plist |
+| バックグラウンドアップロード (`react-native-background-upload` / NSURLSession) | ✅ Podfile + Info.plist `UIBackgroundModes` |
+| IAP product ID 登録 (`app.secstorage.bucket.monthly`) | 🟡 App Store Connect 側で登録（外部作業） |
+| マネージドモードのサーバー側 API | ✅ `server/`（Cloudflare Workers + R2 + D1） |
+
+詳細手順は [`ios/SETUP.md`](ios/SETUP.md) を参照。
 
 ## 信頼の核
 

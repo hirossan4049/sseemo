@@ -1,4 +1,4 @@
-# SecStorage managed-mode server
+# sseemo managed-mode server
 
 Cloudflare Worker that issues short-lived presigned URLs against an R2 bucket
 for clients running in managed mode. The server never sees plaintext: all data

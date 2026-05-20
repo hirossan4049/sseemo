@@ -3,6 +3,10 @@
 `npx react-native init` で生成される `ios/SecStorage.xcodeproj` 一式を上書きする前提で、
 手動セットアップ項目をここに集約。
 
+> Xcode プロジェクト名 (`SecStorage.xcodeproj`) と Bundle ID
+> (`com.secstorage.app`) はアプリ名リブランド (sseemo) 後も互換のため据え置き。
+> ユーザーから見える表示名は `app.json` の `displayName` で「sseemo」に切替。
+
 ## Info.plist 追加
 
 ```xml
