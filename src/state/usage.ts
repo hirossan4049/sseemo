@@ -29,11 +29,6 @@ export async function reportUsage(u: UsageStatus, mode: 'managed' | 'byo'): Prom
   }
 }
 
-export async function setUsageReportEndpoint(url: string, token = ''): Promise<void> {
-  await AsyncStorage.setItem(REPORT_ENDPOINT_KEY, url);
-  if (token) await AsyncStorage.setItem(REPORT_TOKEN_KEY, token);
-}
-
 export interface UsageStatus {
   used: number;
   limit: number;

@@ -31,11 +31,6 @@ export async function addEntry(e: IndexEntry): Promise<void> {
   await saveIndex(all);
 }
 
-export async function removeEntry(id: string): Promise<void> {
-  const all = await loadIndex();
-  await saveIndex(all.filter(x => x.id !== id));
-}
-
 export async function childrenOf(parentId: string | null): Promise<IndexEntry[]> {
   const all = await loadIndex();
   return all.filter(e => e.parentId === parentId);

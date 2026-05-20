@@ -1,6 +1,6 @@
 import RNFS from 'react-native-fs';
 import { FileEncryptor, FileMeta } from '@/crypto/cipher';
-import { DEFAULT_CHUNK_SIZE, HEADER_SIZE } from '@/crypto/format';
+import { DEFAULT_CHUNK_SIZE } from '@/crypto/format';
 import { BucketCredentials } from '@/crypto/keychain';
 import { putObject } from './client';
 import { backgroundPutObject } from './backgroundUpload';
@@ -119,14 +119,3 @@ export async function encryptAndUploadChunked(
   }
 }
 
-/** manifest を含むサイドカー群を 1 本の SSF1 ファイルに連結 (CLI 互換) */
-export function assembleSSF1(
-  manifest: ChunkManifest,
-  chunkBlobs: Buffer[],
-): Buffer {
-  if (chunkBlobs.length !== manifest.chunks.length)
-    throw new Error('chunk count mismatch');
-  const header = Buffer.from(manifest.header, 'base64');
-  if (header.length < HEADER_SIZE) throw new Error('bad header');
-  return Buffer.concat([header, ...chunkBlobs]);
-}
