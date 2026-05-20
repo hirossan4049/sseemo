@@ -4,6 +4,7 @@ import { clearMnemonic } from '@/crypto/keychain';
 import { lock } from '@/state/keyStore';
 import { getActiveBucket, listBucketIds } from '@/state/bucketStore';
 import { deleteObject, listObjects } from '@/s3/client';
+import { deleteAccount as managedDeleteAccount } from '@/s3/managedClient';
 
 /**
  * App Store 要件: アプリ内アカウント削除導線。
@@ -16,9 +17,13 @@ export async function deleteAccount(): Promise<void> {
   for (const _ of ids) {
     const bucket = await getActiveBucket();
     if (!bucket) continue;
-    const objects = await listObjects(bucket).catch(() => []);
-    for (const o of objects) {
-      await deleteObject(bucket, o.key).catch(() => {});
+    if (bucket.mode === 'managed') {
+      await managedDeleteAccount(bucket).catch(() => {});
+    } else {
+      const objects = await listObjects(bucket).catch(() => []);
+      for (const o of objects) {
+        await deleteObject(bucket, o.key).catch(() => {});
+      }
     }
   }
   await clearMnemonic();

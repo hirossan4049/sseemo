@@ -11,6 +11,9 @@ import {
 import { headBucket } from '@/s3/client';
 import { BucketCredentials } from '@/crypto/keychain';
 import { addBucket } from '@/state/bucketStore';
+import { authApple } from '@/s3/managedClient';
+import { signInWithApple } from '@/auth/apple';
+import { MANAGED_BACKEND_URL } from '@/config';
 
 export default function BucketSetupScreen({ navigation }: any) {
   const [mode, setMode] = useState<'managed' | 'byo'>('managed');
@@ -24,17 +27,32 @@ export default function BucketSetupScreen({ navigation }: any) {
   async function proceed() {
     setTesting(true);
     try {
-      const creds: BucketCredentials = {
-        id: `b-${Date.now()}`,
-        mode,
-        endpoint:
-          mode === 'managed' ? 'https://managed.secstorage.app' : endpoint,
-        region: mode === 'managed' ? 'auto' : region,
-        bucket: mode === 'managed' ? 'managed' : bucket,
-        accessKeyId: mode === 'managed' ? 'managed' : accessKey,
-        secretAccessKey: mode === 'managed' ? 'managed' : secretKey,
-      };
-      if (mode === 'byo') {
+      let creds: BucketCredentials;
+      if (mode === 'managed') {
+        const apple = await signInWithApple();
+        if (!apple.identityToken) throw new Error('Apple identityToken missing');
+        const { token, userId } = await authApple(MANAGED_BACKEND_URL, apple.identityToken);
+        creds = {
+          id: `managed-${userId}`,
+          mode: 'managed',
+          endpoint: MANAGED_BACKEND_URL,
+          region: 'auto',
+          bucket: 'managed',
+          accessKeyId: '',
+          secretAccessKey: '',
+          backendUrl: MANAGED_BACKEND_URL,
+          sessionToken: token,
+        };
+      } else {
+        creds = {
+          id: `b-${Date.now()}`,
+          mode: 'byo',
+          endpoint,
+          region,
+          bucket,
+          accessKeyId: accessKey,
+          secretAccessKey: secretKey,
+        };
         const ok = await headBucket(creds);
         if (!ok) throw new Error('接続テスト失敗');
       }

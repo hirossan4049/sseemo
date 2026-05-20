@@ -2,6 +2,7 @@ import { openGcm, sealGcm } from '@/crypto/cipher';
 import { deriveIndexKey } from '@/crypto/kdf';
 import { BucketCredentials } from '@/crypto/keychain';
 import { getObject, putObject } from '@/s3/client';
+import { getIndex, putIndex } from '@/s3/managedClient';
 import { IndexEntry } from './index';
 
 const INDEX_KEY = '__secstorage__/index.bin';
@@ -17,19 +18,26 @@ export async function pushIndex(
 ): Promise<void> {
   const plain = Buffer.from(JSON.stringify(entries), 'utf8');
   const blob = sealGcm(deriveIndexKey(master), plain);
-  await putObject(creds, INDEX_KEY, blob, 'application/octet-stream');
+  if (creds.mode === 'managed') {
+    await putIndex(creds, blob);
+  } else {
+    await putObject(creds, INDEX_KEY, blob, 'application/octet-stream');
+  }
 }
 
 export async function pullIndex(
   master: Buffer,
   creds: BucketCredentials,
 ): Promise<IndexEntry[]> {
-  let blob: Buffer;
+  let blob: Buffer | null;
   try {
-    blob = await getObject(creds, INDEX_KEY);
+    blob = creds.mode === 'managed'
+      ? await getIndex(creds)
+      : await getObject(creds, INDEX_KEY);
   } catch {
     return [];
   }
+  if (!blob) return [];
   const plain = openGcm(deriveIndexKey(master), blob);
   return JSON.parse(plain.toString('utf8'));
 }

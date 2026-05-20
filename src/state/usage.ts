@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadIndex } from '@/storage';
 import { FREE_LIMIT_BYO, FREE_LIMIT_MANAGED } from '@/config';
+import { getActiveBucket } from '@/state/bucketStore';
+import { getServerUsage } from '@/s3/managedClient';
 
 const NOTIFY_KEY = '@secstorage/usage/notified';
 const PAID_KEY = '@secstorage/usage/paid';
@@ -9,9 +11,10 @@ const REPORT_TOKEN_KEY = '@secstorage/usage/reportToken';
 
 /**
  * spec §10: BYO 構成ではクライアント側で計測 → サーバー報告。
- * 報告先URLが未設定なら no-op。サーバー実装側は { used, mode, ts } を受け取る。
+ * managed では server-side bucket listing を信頼するため no-op。
  */
 export async function reportUsage(u: UsageStatus, mode: 'managed' | 'byo'): Promise<void> {
+  if (mode === 'managed') return; // server is authoritative
   const url = await AsyncStorage.getItem(REPORT_ENDPOINT_KEY);
   if (!url) return;
   const token = (await AsyncStorage.getItem(REPORT_TOKEN_KEY)) ?? '';
@@ -46,10 +49,28 @@ export async function setPaid(v: boolean): Promise<void> {
 }
 
 export async function computeUsage(mode: 'managed' | 'byo'): Promise<UsageStatus> {
+  const paid = await isPaid();
+  if (mode === 'managed') {
+    try {
+      const bucket = await getActiveBucket();
+      if (bucket?.mode === 'managed') {
+        const s = await getServerUsage(bucket);
+        const pct = (s.usedBytes / s.limitBytes) * 100;
+        return {
+          used: s.usedBytes,
+          limit: s.limitBytes,
+          pct,
+          paid,
+          hardStopped: !paid && s.usedBytes >= s.limitBytes,
+        };
+      }
+    } catch {
+      // fall through to local estimate
+    }
+  }
   const idx = await loadIndex();
   const used = idx.reduce((a, b) => a + b.size, 0);
   const limit = mode === 'managed' ? FREE_LIMIT_MANAGED : FREE_LIMIT_BYO;
-  const paid = await isPaid();
   const pct = (used / limit) * 100;
   return { used, limit, pct, paid, hardStopped: !paid && used >= limit };
 }

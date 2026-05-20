@@ -34,7 +34,13 @@ export async function encryptAndUpload(opts: UploadOptions): Promise<void> {
     meta: { ...opts.meta, size: total },
   });
 
-  const uploadId = await createMultipartUpload(opts.creds, opts.remoteKey);
+  // Reservation is a best-effort upper bound (header + GCM tags per chunk).
+  const reservedBytes = total + Math.ceil(total / DEFAULT_CHUNK_SIZE) * 64 + 1024;
+  const uploadId = await createMultipartUpload(
+    opts.creds,
+    opts.remoteKey,
+    reservedBytes,
+  );
   const parts: { partNumber: number; etag: string }[] = [];
 
   try {
