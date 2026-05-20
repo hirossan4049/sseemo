@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,16 @@ import {
   Dimensions,
   Pressable,
   Alert,
-  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadIndex, IndexEntry } from '@/storage';
 import { pickAndImport } from '@/photos/importer';
-import { loadThumb } from '@/photos/thumbnail';
-import { getMaster } from '@/state/keyStore';
-import { getActiveBucket } from '@/state/bucketStore';
 import { useTheme, radii, type } from '@/theme';
 import { Screen, NavBar, IconButton, FAB } from '@/components/ui';
 import { AppIcon } from '@/components/icons';
+import { MediaPreview } from '@/components/MediaPreview';
+import { MediaThumb } from '@/components/MediaThumb';
+import { canPreviewEntry } from '@/media/entryFile';
 
 const COLS = 3;
 const SIZE = Dimensions.get('window').width / COLS - 3;
@@ -28,6 +27,7 @@ export default function AlbumsScreen() {
   const t = useTheme();
   const [all, setAll] = useState<IndexEntry[]>([]);
   const [groupBy, setGroupBy] = useState<GroupBy>('day');
+  const [previewEntry, setPreviewEntry] = useState<IndexEntry | null>(null);
 
   const load = useCallback(async () => {
     setAll(await loadIndex());
@@ -39,17 +39,17 @@ export default function AlbumsScreen() {
     }, [load]),
   );
 
-  const photos = useMemo(() => all.filter(isImage), [all]);
-  const groups = useMemo(() => groupByDate(photos, groupBy), [photos, groupBy]);
+  const media = useMemo(() => all.filter(canPreviewEntry), [all]);
+  const groups = useMemo(() => groupByDate(media, groupBy), [media, groupBy]);
 
   return (
     <Screen>
       <NavBar
         sub="アルバム"
-        title="写真"
+        title="メディア"
         meta={
           <Text style={[type.num, { fontSize: 12, color: t.text3, marginTop: 4 }]}>
-            {photos.length.toLocaleString()} 枚を保管中
+            {media.length.toLocaleString()} 件を保管中
           </Text>
         }
         trailing={
@@ -117,13 +117,15 @@ export default function AlbumsScreen() {
                   {item.label}
                 </Text>
                 <Text style={[type.num, { fontSize: 11.5, color: t.text3, marginTop: 2 }]}>
-                  {item.items.length} 枚
+                  {item.items.length} 件
                 </Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3 }}>
               {item.items.map(x => (
-                <Thumb key={x.id} entry={x} />
+                <Pressable key={x.id} onPress={() => setPreviewEntry(x)}>
+                  <MediaThumb entry={x} size={SIZE} />
+                </Pressable>
               ))}
             </View>
           </View>
@@ -136,11 +138,11 @@ export default function AlbumsScreen() {
               color: t.text3,
               fontSize: 13,
             }}>
-            まだ写真はありません
+            まだプレビューできるメディアはありません
           </Text>
         }
         ListFooterComponent={
-          photos.length > 0 ? (
+          media.length > 0 ? (
             <Text
               style={{
                 textAlign: 'center',
@@ -148,7 +150,7 @@ export default function AlbumsScreen() {
                 color: t.text3,
                 paddingTop: 24,
               }}>
-              小さな写真は手元に。元データは鍵をかけて保管しています。
+              小さなプレビューは手元に。元データは鍵をかけて保管しています。
             </Text>
           ) : null
         }
@@ -166,52 +168,9 @@ export default function AlbumsScreen() {
         }}>
         <AppIcon name="plus" color={t.bg} size={28} strokeWidth={2.4} />
       </FAB>
+      <MediaPreview entry={previewEntry} onClose={() => setPreviewEntry(null)} />
     </Screen>
   );
-}
-
-function Thumb({ entry }: { entry: IndexEntry }) {
-  const t = useTheme();
-  const [uri, setUri] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const master = getMaster();
-      const bucket = await getActiveBucket();
-      if (!master || !bucket) return;
-      try {
-        const buf = await loadThumb(master, bucket, entry.id);
-        if (!cancelled && buf) {
-          setUri(`data:image/jpeg;base64,${buf.toString('base64')}`);
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [entry.id]);
-  return (
-    <View
-      style={{
-        width: SIZE,
-        height: SIZE,
-        backgroundColor: t.surface3,
-        borderRadius: 4,
-        overflow: 'hidden',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-      {uri ? (
-        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
-      ) : (
-        <AppIcon name="image" color={t.text3} size={24} />
-      )}
-    </View>
-  );
-}
-
-function isImage(e: IndexEntry): boolean {
-  return !e.isFolder && !!e.mime?.startsWith('image/');
 }
 
 function groupByDate(

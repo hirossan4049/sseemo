@@ -3,10 +3,17 @@ import { Image, View, StyleProp, ViewStyle } from 'react-native';
 import { getActiveBucket } from '@/state/bucketStore';
 import { getMaster } from '@/state/keyStore';
 import { loadThumb } from '@/photos/thumbnail';
+import { saveThumb } from '@/photos/thumbnail';
+import { generateThumbnail } from '@/photos/thumbnailGen';
 import { IndexEntry } from '@/storage';
 import { useTheme } from '@/theme';
 import { AppIcon } from '@/components/icons';
-import { canPreviewEntry, isVideoEntry } from '@/media/entryFile';
+import {
+  canPreviewEntry,
+  cleanupMaterialized,
+  isVideoEntry,
+  materializeEntry,
+} from '@/media/entryFile';
 import { b64encode } from '@/crypto/base64';
 
 export function MediaThumb({
@@ -26,8 +33,9 @@ export function MediaThumb({
 
   useEffect(() => {
     let cancelled = false;
+    let generatedPath: string | null = null;
+    setUri(null);
     if (!previewable) {
-      setUri(null);
       return;
     }
     (async () => {
@@ -35,7 +43,19 @@ export function MediaThumb({
       const bucket = await getActiveBucket();
       if (!master || !bucket) return;
       try {
-        const buf = await loadThumb(master, bucket, entry.id);
+        let buf = await loadThumb(master, bucket, entry.id);
+        if (!buf) {
+          generatedPath = await materializeEntry(entry, 'preview');
+          if (cancelled) {
+            cleanupMaterialized(generatedPath);
+            return;
+          }
+          const thumb = await generateThumbnail(generatedPath, entry.mime ?? '');
+          if (thumb) {
+            await saveThumb(master, bucket, entry.id, thumb);
+            buf = thumb;
+          }
+        }
         if (!cancelled && buf) {
           setUri(`data:image/jpeg;base64,${b64encode(buf)}`);
         }
@@ -43,8 +63,9 @@ export function MediaThumb({
     })();
     return () => {
       cancelled = true;
+      cleanupMaterialized(generatedPath);
     };
-  }, [entry.id, previewable]);
+  }, [entry, previewable]);
 
   return (
     <View

@@ -7,11 +7,8 @@ import {
   RefreshControl,
   Alert,
   TextInput,
-  Share,
-  Platform,
   Pressable,
 } from 'react-native';
-import QuickCrypto from 'react-native-quick-crypto';
 import { useFocusEffect } from '@react-navigation/native';
 import { childrenOf, IndexEntry } from '@/storage';
 import {
@@ -21,14 +18,13 @@ import {
   searchEntries,
 } from '@/storage/operations';
 import { pickAndImport, pickAndImportDocuments } from '@/photos/importer';
-import { getActiveBucket, getActiveBucketId } from '@/state/bucketStore';
-import { downloadAndDecrypt } from '@/s3/download';
-import { downloadAndDecryptChunked } from '@/s3/chunkedDownload';
-import { getMaster } from '@/state/keyStore';
-import RNFS from 'react-native-fs';
+import { getActiveBucketId } from '@/state/bucketStore';
 import { useTheme, radii, type } from '@/theme';
 import { Screen, NavBar, IconButton, FAB, Button } from '@/components/ui';
 import { AppIcon } from '@/components/icons';
+import { MediaPreview } from '@/components/MediaPreview';
+import { MediaThumb } from '@/components/MediaThumb';
+import { canPreviewEntry, shareEntry } from '@/media/entryFile';
 
 type SortKey = 'name' | 'size' | 'mtime';
 
@@ -40,6 +36,7 @@ export default function FoldersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [previewEntry, setPreviewEntry] = useState<IndexEntry | null>(null);
 
   const parentId = stack[stack.length - 1];
 
@@ -93,63 +90,6 @@ export default function FoldersScreen() {
     await moveEntries([...selection], target);
     setSelection(new Set());
     load();
-  }
-
-  async function downloadItem(item: IndexEntry) {
-    const master = getMaster();
-    const bucket = await getActiveBucket();
-    if (!master || !bucket) {
-      Alert.alert('エラー', 'ロック中またはバケット未設定');
-      return;
-    }
-    const opaqueDir = `${RNFS.CachesDirectoryPath}/ssf-share`;
-    await RNFS.mkdir(opaqueDir).catch(() => {});
-    const opaqueId = Buffer.from(QuickCrypto.randomBytes(16) as any).toString('hex');
-    const ext = (() => {
-      const dot = item.name.lastIndexOf('.');
-      return dot > 0 ? item.name.slice(dot) : '';
-    })();
-    const out = `${opaqueDir}/${opaqueId}${ext}`;
-    const isChunked = !item.remoteKey.endsWith('.ssf');
-    try {
-      if (isChunked) {
-        await downloadAndDecryptChunked({
-          master,
-          creds: bucket,
-          remotePrefix: item.remoteKey,
-          localPath: out,
-        });
-      } else {
-        await downloadAndDecrypt({
-          master,
-          creds: bucket,
-          remoteKey: item.remoteKey,
-          localPath: out,
-        });
-      }
-      try {
-        if (Platform.OS === 'ios' && (RNFS as any).setReadable) {
-          await (RNFS as any).setReadable?.(out, false);
-        }
-      } catch {
-        /* ignore */
-      }
-      try {
-        await Share.share(
-          Platform.OS === 'ios'
-            ? { url: `file://${out}` }
-            : { url: `file://${out}`, message: item.name, title: item.name },
-        );
-      } finally {
-        const ttlMs = Platform.OS === 'android' ? 5000 : 0;
-        setTimeout(() => {
-          RNFS.unlink(out).catch(() => {});
-        }, ttlMs);
-      }
-    } catch (e: any) {
-      await RNFS.unlink(out).catch(() => {});
-      Alert.alert('失敗', e.message);
-    }
   }
 
   async function delSelected() {
@@ -257,7 +197,8 @@ export default function FoldersScreen() {
               onPress={() => {
                 if (selecting) toggleSel(item.id);
                 else if (item.isFolder) setStack([...stack, item.id]);
-                else downloadItem(item);
+                else if (canPreviewEntry(item)) setPreviewEntry(item);
+                else shareEntry(item);
               }}
               onLongPress={() => toggleSel(item.id)}
               style={({ pressed }) => ({
@@ -284,11 +225,7 @@ export default function FoldersScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                <AppIcon
-                  name={item.isFolder ? 'folder' : 'file'}
-                  color={item.isFolder ? t.accentText : t.text2}
-                  size={20}
-                />
+                <MediaThumb entry={item} size={38} radius={10} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
@@ -349,6 +286,7 @@ export default function FoldersScreen() {
         }}>
         <AppIcon name="plus" color={t.bg} size={28} strokeWidth={2.4} />
       </FAB>
+      <MediaPreview entry={previewEntry} onClose={() => setPreviewEntry(null)} />
     </Screen>
   );
 }
