@@ -66,15 +66,17 @@ export default function BucketSetupScreen({ navigation }: any) {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.root}>
+    <ScrollView contentContainerStyle={s.root} testID="bucket-setup-screen">
       <Text style={s.title}>バケット選択</Text>
       <View style={s.row}>
         <Button
+          testID="bucket-managed-btn"
           title={`マネージド ${mode === 'managed' ? '✓' : ''}`}
           onPress={() => setMode('managed')}
         />
         <View style={{ width: 8 }} />
         <Button
+          testID="bucket-byo-btn"
           title={`互換S3 ${mode === 'byo' ? '✓' : ''}`}
           onPress={() => setMode('byo')}
         />
@@ -94,7 +96,12 @@ export default function BucketSetupScreen({ navigation }: any) {
         </>
       )}
       <View style={{ height: 24 }} />
-      <Button title={testing ? '...' : '次へ'} onPress={proceed} disabled={testing} />
+      <Button
+        testID="bucket-continue-btn"
+        title={testing ? '...' : '次へ'}
+        onPress={proceed}
+        disabled={testing}
+      />
     </ScrollView>
   );
 }

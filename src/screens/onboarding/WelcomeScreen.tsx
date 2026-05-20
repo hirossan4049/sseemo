@@ -10,7 +10,7 @@ export default function WelcomeScreen({ navigation }: any) {
   const [devBusy, setDevBusy] = useState(false);
 
   return (
-    <View style={s.root}>
+    <View style={s.root} testID="welcome-screen">
       <Text style={s.title}>SecStorage</Text>
       <Text style={s.lead}>鍵は、自分で持つ。</Text>
       <Text style={s.body}>
@@ -18,6 +18,7 @@ export default function WelcomeScreen({ navigation }: any) {
       </Text>
       <View style={{ height: 24 }} />
       <Button
+        testID="welcome-apple-btn"
         title="Apple でサインイン"
         onPress={async () => {
           try {
@@ -43,6 +44,7 @@ export default function WelcomeScreen({ navigation }: any) {
             style={s.input}
           />
           <TextInput
+            testID="welcome-dev-token-input"
             value={devToken}
             onChangeText={setDevToken}
             placeholder="DEV_AUTH_TOKEN"
@@ -52,6 +54,7 @@ export default function WelcomeScreen({ navigation }: any) {
             style={s.input}
           />
           <Button
+            testID="welcome-dev-login-btn"
             title={devBusy ? '...' : 'Dev: sign in via test JWT'}
             disabled={devBusy || !devToken}
             onPress={async () => {

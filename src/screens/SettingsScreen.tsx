@@ -245,7 +245,7 @@ export default function SettingsScreen() {
   if (!usage) return <View />;
 
   return (
-    <ScrollView style={s.root}>
+    <ScrollView style={s.root} testID="settings-screen">
       <Section title="使用量">
         <Text>
           {formatSize(usage.used)} / {formatSize(usage.limit)} (
@@ -330,9 +330,17 @@ export default function SettingsScreen() {
         <Button title="互換S3バケットを追加" onPress={addByoBucket} />
       </Section>
       <Section title="鍵">
-        <Button title="リカバリーフレーズを表示" onPress={exportMnemonic} />
+        <Button
+          testID="settings-export-mnemonic-btn"
+          title="リカバリーフレーズを表示"
+          onPress={exportMnemonic}
+        />
         <View style={{ height: 6 }} />
-        <Button title="ファイルに保存" onPress={exportMnemonicToFile} />
+        <Button
+          testID="settings-export-mnemonic-file-btn"
+          title="ファイルに保存"
+          onPress={exportMnemonicToFile}
+        />
         <View style={{ height: 6 }} />
         <Button title="インポート" onPress={importMnemonic} />
         <View style={{ height: 6 }} />
@@ -353,6 +361,7 @@ export default function SettingsScreen() {
       </Section>
       <Section title="アカウント">
         <Button
+          testID="settings-delete-account-btn"
           title="アカウントとデータを完全削除"
           color="#c33"
           onPress={purge}

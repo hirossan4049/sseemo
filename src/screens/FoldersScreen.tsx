@@ -181,7 +181,7 @@ export default function FoldersScreen() {
   const selecting = selection.size > 0;
 
   return (
-    <View style={s.root}>
+    <View style={s.root} testID="folders-screen">
       <TextInput
         placeholder="検索"
         value={query}
@@ -244,6 +244,7 @@ export default function FoldersScreen() {
         ListEmptyComponent={<Text style={s.empty}>ファイルがありません</Text>}
       />
       <TouchableOpacity
+        testID="folders-fab-document"
         style={[s.fab, { bottom: 90, backgroundColor: '#5a5a8a' }]}
         onPress={async () => {
           try {
@@ -257,6 +258,7 @@ export default function FoldersScreen() {
         <Text style={s.fabText}>📄</Text>
       </TouchableOpacity>
       <TouchableOpacity
+        testID="folders-fab"
         style={s.fab}
         onPress={async () => {
           try {
