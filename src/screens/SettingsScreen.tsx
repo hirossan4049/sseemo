@@ -96,9 +96,9 @@ export default function SettingsScreen() {
     const opaqueDir = `${RNFS.CachesDirectoryPath}/ssf-share`;
     await RNFS.mkdir(opaqueDir).catch(() => {});
     const opaqueId = Buffer.from(QuickCrypto.randomBytes(12) as any).toString('hex');
-    const out = `${opaqueDir}/secstorage-recovery-${opaqueId}.txt`;
+    const out = `${opaqueDir}/sseemo-recovery-${opaqueId}.txt`;
     const body =
-      'SecStorage リカバリーフレーズ (BIP-39 12 words)\n' +
+      'sseemo リカバリーフレーズ (BIP-39 12 words)\n' +
       '取扱注意: このフレーズを知る者はあなたのすべてのファイルを復号できます。\n\n' +
       m +
       '\n';
@@ -110,7 +110,7 @@ export default function SettingsScreen() {
           : {
               url: `file://${out}`,
               message: body,
-              title: 'SecStorage Recovery Phrase',
+              title: 'sseemo Recovery Phrase',
             },
       );
     } finally {
@@ -367,7 +367,7 @@ export default function SettingsScreen() {
           onPress={purge}
         />
       </Section>
-      <Text style={s.footer}>SecStorage v0.1 — 鍵は自分で持つ。</Text>
+      <Text style={s.footer}>sseemo v0.1 — 鍵はあなたが持っていてください。</Text>
     </ScrollView>
   );
 }

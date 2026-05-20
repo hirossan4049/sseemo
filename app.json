@@ -1,8 +1,8 @@
 {
-  "name": "SecStorage",
-  "displayName": "SecStorage",
+  "name": "sseemo",
+  "displayName": "sseemo",
   "expo": {
-    "name": "SecStorage",
+    "name": "sseemo",
     "slug": "secstorage",
     "scheme": "secstorage",
     "version": "0.1.0",

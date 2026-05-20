@@ -29,7 +29,7 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
         // 触ることで biometry プロンプト発火
         await Keychain.getGenericPassword({
           service: 'app.secstorage.mnemonic',
-          authenticationPrompt: { title: 'SecStorage のロック解除' },
+          authenticationPrompt: { title: 'sseemo のロック解除' },
         });
         const k = await unlock();
         if (k) onUnlocked();
@@ -45,7 +45,7 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
 
   return (
     <View style={s.root}>
-      <Text style={s.title}>🔒 SecStorage</Text>
+      <Text style={s.title}>🔒 sseemo</Text>
       {needsPassphrase && (
         <>
           <TextInput

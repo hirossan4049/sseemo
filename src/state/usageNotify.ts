@@ -98,12 +98,12 @@ export async function notifyOnThreshold(mode: 'managed' | 'byo'): Promise<void> 
       content: {
         title:
           level === 95
-            ? 'SecStorage: 容量 95% 超過'
-            : 'SecStorage: 容量 80% 超過',
+            ? 'sseemo: もうすぐいっぱいです'
+            : 'sseemo: 残りが少なくなってきました',
         body:
           level === 95
-            ? '間もなくハード停止します。課金または不要ファイルの削除をご検討ください。'
-            : '容量が 80% を超えました。残り容量にご注意ください。',
+            ? 'もうすぐいっぱいです。お支払いに進むか、いらないものを片付けてみてください。'
+            : '残り20%を切りました。そろそろ整理を考えてみてください。',
       },
       trigger: null,
     });

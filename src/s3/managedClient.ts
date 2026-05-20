@@ -1,7 +1,7 @@
 /**
  * Managed-mode S3 client.
  *
- * Talks to the SecStorage backend (`server/`) for short-lived presigned URLs
+ * Talks to the sseemo backend (`server/`) for short-lived presigned URLs
  * against R2 instead of signing requests locally. Exposes the same API as the
  * BYO `client.ts` so the rest of the app doesn't have to know the difference.
  */
