@@ -6,7 +6,9 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  self.moduleName = @"SecStorage";
+  // Expo's `registerRootComponent` registers the app under the name "main".
+  // Keep this in sync with `registerRootComponent(App)` in index.js.
+  self.moduleName = @"main";
   self.initialProps = @{};
 
   // バックグラウンドフェッチで写真自動取り込み
