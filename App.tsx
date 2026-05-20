@@ -65,14 +65,23 @@ export default function App() {
         const token = params.get('token') ?? '';
         const tag = params.get('tag') ?? 'sim';
         const backendUrl = params.get('backend') || undefined;
-        const verify = params.get('verify') === '1';
+        const verifyParam = params.get('verify') ?? '';
+        const verify = verifyParam === '1';
+        const verifyMulti = verifyParam === 'multi';
         const cleanup = params.get('cleanup') === '1';
         if (!token) {
           console.log('[VERIFY] dev-onboard missing token');
           return;
         }
-        await runDevOnboard({ backendUrl, token, deviceTag: tag, verify, cleanup });
-        if (!cleanup) {
+        await runDevOnboard({
+          backendUrl,
+          token,
+          deviceTag: tag,
+          verify,
+          verifyMulti,
+          cleanup,
+        });
+        if (!cleanup && !verifyMulti) {
           // Surface onto the Main stack so the user can poke around.
           setOnboarded(true);
           setLocked(false);
