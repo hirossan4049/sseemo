@@ -70,8 +70,10 @@ export default function SettingsScreen() {
     setHasToken(await hasReportToken());
     await checkAndNotify(u, level =>
       Alert.alert(
-        `容量 ${level}% 超過`,
-        level === 95 ? '間もなくハード停止します。課金してください。' : '容量にご注意ください。',
+        level === 95 ? 'もうすぐいっぱいです' : '残りが少なくなってきました',
+        level === 95
+          ? 'お支払いに進むか、いらないものを片付けてみてください。'
+          : 'あと少しで上限です。いっぱいになると、新しいファイルは置けなくなります。',
       ),
     );
   }
@@ -226,48 +228,56 @@ export default function SettingsScreen() {
   }
 
   async function purge() {
-    Alert.alert('アカウント削除', 'すべてのデータが削除されます', [
-      { text: 'キャンセル' },
-      {
-        text: '削除',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteAccount();
-          Alert.alert(
-            '完了',
-            'サブスクは App Store > サブスクリプション から解約してください',
-          );
+    Alert.alert(
+      'すべて消しますか?',
+      'お預かりしていたものは戻せません。',
+      [
+        { text: 'やめておく' },
+        {
+          text: '消す',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAccount();
+            Alert.alert(
+              '消しました',
+              'お支払いは App Store > サブスクリプション から止めてください。',
+            );
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (!usage) return <View />;
 
   return (
     <ScrollView style={s.root} testID="settings-screen">
-      <Section title="使用量">
+      <Section title="使っている容量">
         <Text>
           {formatSize(usage.used)} / {formatSize(usage.limit)} (
           {usage.pct.toFixed(1)}%)
         </Text>
         {usage.pct >= 80 && usage.pct < 95 && (
-          <Text style={{ color: '#c93' }}>容量に注意: 80%超過</Text>
+          <Text style={{ color: '#c93' }}>
+            あと少しで上限です。いっぱいになると、新しいファイルは置けなくなります。
+          </Text>
         )}
         {usage.pct >= 95 && !usage.paid && (
-          <Text style={{ color: '#c33' }}>95%超過: 課金推奨</Text>
+          <Text style={{ color: '#c33' }}>
+            もうすぐいっぱいです。お支払いに進むか、いらないものを片付けてみてください。
+          </Text>
         )}
         {usage.hardStopped && (
           <Text style={{ color: '#c33', fontWeight: '700' }}>
-            ハード停止中: 新規アップロード不可
+            いっぱいです。今は新しいファイルを置けません。
           </Text>
         )}
       </Section>
-      <Section title="サブスク">
+      <Section title="お支払い">
         <Text style={s.muted}>
-          状態: {usage.paid ? '有効' : '無料枠'}
+          状態: {usage.paid ? 'ご利用中' : '無料の範囲内'}
         </Text>
-        <Button title="¥480/月で容量解放" onPress={buy} />
+        <Button title="¥480/月で容量を広げる" onPress={buy} />
       </Section>
       <Section title="BYO 使用量レポート">
         <Text style={s.muted}>
@@ -362,7 +372,7 @@ export default function SettingsScreen() {
       <Section title="アカウント">
         <Button
           testID="settings-delete-account-btn"
-          title="アカウントとデータを完全削除"
+          title="やめる（すべて消す）"
           color="#c33"
           onPress={purge}
         />

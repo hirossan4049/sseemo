@@ -241,7 +241,7 @@ export default function FoldersScreen() {
             </TouchableOpacity>
           );
         }}
-        ListEmptyComponent={<Text style={s.empty}>ファイルがありません</Text>}
+        ListEmptyComponent={<Text style={s.empty}>まだ何もありません</Text>}
       />
       <TouchableOpacity
         testID="folders-fab-document"
@@ -249,10 +249,10 @@ export default function FoldersScreen() {
         onPress={async () => {
           try {
             const n = await pickAndImportDocuments(parentId);
-            Alert.alert('ファイル取込完了', `${n} 件`);
+            Alert.alert('しまっておきました', `${n} 件、鍵をかけて送りました。`);
             load();
           } catch (e: any) {
-            if (!/cancel/i.test(e.message ?? '')) Alert.alert('失敗', e.message);
+            if (!/cancel/i.test(e.message ?? '')) Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
         <Text style={s.fabText}>📄</Text>
@@ -263,10 +263,10 @@ export default function FoldersScreen() {
         onPress={async () => {
           try {
             const n = await pickAndImport(parentId);
-            Alert.alert('アップロード完了', `${n} 件`);
+            Alert.alert('しまっておきました', `${n} 件、鍵をかけて送りました。`);
             load();
           } catch (e: any) {
-            Alert.alert('失敗', e.message);
+            Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
         <Text style={s.fabText}>+</Text>

@@ -35,13 +35,17 @@ export default function AlbumsScreen() {
     }, [load]),
   );
 
+  const photos = useMemo(() => all.filter(isImage), [all]);
   const groups = useMemo(
-    () => groupByDate(all.filter(isImage), groupBy),
-    [all, groupBy],
+    () => groupByDate(photos, groupBy),
+    [photos, groupBy],
   );
 
   return (
     <View style={{ flex: 1 }}>
+      <Text style={s.countLine}>
+        {photos.length.toLocaleString()}枚を保管中
+      </Text>
       <View style={s.segmented}>
         {(['year', 'month', 'day'] as GroupBy[]).map(g => (
           <TouchableOpacity
@@ -69,7 +73,7 @@ export default function AlbumsScreen() {
         )}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 48, color: '#888' }}>
-            写真がありません
+            まだ写真はありません
           </Text>
         }
       />
@@ -78,10 +82,10 @@ export default function AlbumsScreen() {
         onPress={async () => {
           try {
             const n = await pickAndImport();
-            Alert.alert('取り込み完了', `${n} 件`);
+            Alert.alert('あずかりました', `${n} 件、鍵をかけてしまっておきました。`);
             load();
           } catch (e: any) {
-            Alert.alert('失敗', e.message);
+            Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
         <Text style={s.fabText}>+</Text>
@@ -156,6 +160,12 @@ function groupByDate(
 }
 
 const s = StyleSheet.create({
+  countLine: {
+    fontSize: 12,
+    color: '#666',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
   header: { padding: 8, fontWeight: '700', backgroundColor: '#fafafa' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: {
