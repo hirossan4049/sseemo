@@ -280,10 +280,10 @@ export default function SettingsScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: '600', color: t.text }} numberOfLines={1}>
-                {usage.paid ? 'Apple ID で接続中' : 'Apple ID で接続中'}
+                この端末で接続中
               </Text>
               <Text style={{ fontSize: 12, color: t.text2, marginTop: 2 }}>
-                Sign in with Apple
+                端末バインドの匿名サインイン
               </Text>
             </View>
             <Chip

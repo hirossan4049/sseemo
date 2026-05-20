@@ -49,7 +49,7 @@ export interface BucketCredentials {
   label?: string;
   /** Managed-mode only: sseemo backend URL (Workers origin). */
   backendUrl?: string;
-  /** Managed-mode only: session JWT issued by `/auth/apple`. */
+  /** Managed-mode only: session JWT issued by `/auth/device`. */
   sessionToken?: string;
 }
 

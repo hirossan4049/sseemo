@@ -11,8 +11,7 @@ import {
 import { headBucket } from '@/s3/client';
 import { BucketCredentials } from '@/crypto/keychain';
 import { addBucket } from '@/state/bucketStore';
-import { authApple } from '@/s3/managedClient';
-import { signInWithApple } from '@/auth/apple';
+import { deviceLogin } from '@/auth/deviceLogin';
 import { MANAGED_BACKEND_URL } from '@/config';
 import { useTheme, type, radii } from '@/theme';
 import { Button, Field, Chip, Screen } from '@/components/ui';
@@ -32,23 +31,7 @@ export default function BucketSetupScreen({ navigation }: any) {
     try {
       let creds: BucketCredentials;
       if (mode === 'managed') {
-        const apple = await signInWithApple();
-        if (!apple.identityToken) throw new Error('Apple identityToken missing');
-        const { token, userId } = await authApple(
-          MANAGED_BACKEND_URL,
-          apple.identityToken,
-        );
-        creds = {
-          id: `managed-${userId}`,
-          mode: 'managed',
-          endpoint: MANAGED_BACKEND_URL,
-          region: 'auto',
-          bucket: 'managed',
-          accessKeyId: '',
-          secretAccessKey: '',
-          backendUrl: MANAGED_BACKEND_URL,
-          sessionToken: token,
-        };
+        creds = await deviceLogin(MANAGED_BACKEND_URL);
       } else {
         creds = {
           id: `b-${Date.now()}`,
@@ -61,8 +44,8 @@ export default function BucketSetupScreen({ navigation }: any) {
         };
         const ok = await headBucket(creds);
         if (!ok) throw new Error('接続テスト失敗');
+        await addBucket(creds);
       }
-      await addBucket(creds);
       navigation.navigate('KeyGen');
     } catch (e: any) {
       Alert.alert('接続に失敗しました', e.message);

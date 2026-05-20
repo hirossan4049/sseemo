@@ -246,15 +246,3 @@ export async function deleteAccount(creds: BucketCredentials): Promise<void> {
   if (!r.ok) throw new Error(`account delete failed: ${r.status}`);
 }
 
-export async function authApple(
-  backendUrl: string,
-  identityToken: string,
-): Promise<{ token: string; userId: string }> {
-  const r = await fetch(`${backendUrl.replace(/\/$/, '')}/auth/apple`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ identityToken }),
-  });
-  if (!r.ok) throw new Error(`auth/apple failed: ${r.status}`);
-  return r.json() as any;
-}

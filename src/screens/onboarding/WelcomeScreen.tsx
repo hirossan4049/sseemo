@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Alert,
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import { signInWithApple } from '@/auth/apple';
-import { runDevOnboard } from '@/auth/devOnboard';
-import { MANAGED_BACKEND_URL } from '@/config';
+import { deviceLogin } from '@/auth/deviceLogin';
 import { useTheme, type } from '@/theme';
 import {
   Button,
@@ -17,15 +14,12 @@ import {
   CardRow,
   BrandMark,
   Wordmark,
-  Field,
   Screen,
 } from '@/components/ui';
 
 export default function WelcomeScreen({ navigation }: any) {
   const t = useTheme();
-  const [devToken, setDevToken] = useState('');
-  const [devBackend, setDevBackend] = useState(MANAGED_BACKEND_URL);
-  const [devBusy, setDevBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   return (
     <Screen testID="welcome-screen">
@@ -65,7 +59,7 @@ export default function WelcomeScreen({ navigation }: any) {
             <Card>
               {[
                 'ファイルは手元で鍵をかけます',
-                '必要なのは Apple ID だけ',
+                'アカウント登録は不要。端末がそのまま鍵になります',
                 'やめたいときはすぐに消せます',
               ].map((line, i, a) => (
                 <CardRow key={line} last={i === a.length - 1}>
@@ -92,15 +86,22 @@ export default function WelcomeScreen({ navigation }: any) {
 
           <View style={{ gap: 10, marginTop: 24 }}>
             <Button
-              testID="welcome-apple-btn"
-              title="Apple でサインイン"
+              testID="welcome-start-btn"
+              title={busy ? '準備中…' : 'はじめる'}
+              disabled={busy}
               onPress={async () => {
+                setBusy(true);
                 try {
-                  await signInWithApple();
-                } catch {
-                  // dev fallback
+                  await deviceLogin();
+                  navigation.navigate('BucketSetup');
+                } catch (e: any) {
+                  Alert.alert(
+                    'はじめられませんでした',
+                    e?.message ?? String(e),
+                  );
+                } finally {
+                  setBusy(false);
                 }
-                navigation.navigate('BucketSetup');
               }}
             />
             <Text
@@ -112,69 +113,8 @@ export default function WelcomeScreen({ navigation }: any) {
               続けると 利用規約 と プライバシー に同意したことになります
             </Text>
           </View>
-
-          {__DEV__ && (
-            <View
-              style={[
-                s.devBox,
-                { backgroundColor: t.surface2, borderColor: t.border },
-              ]}>
-              <Text style={[s.devLabel, { color: t.text }]}>
-                Dev: sign in via test JWT
-              </Text>
-              <Text style={[s.devHint, { color: t.text2 }]}>
-                Backend gate: ALLOW_DEV_AUTH=true + DEV_AUTH_TOKEN on server.
-              </Text>
-              <Field
-                label="Backend URL"
-                value={devBackend}
-                onChange={setDevBackend}
-              />
-              <Field
-                label="DEV_AUTH_TOKEN"
-                value={devToken}
-                onChange={setDevToken}
-                testID="welcome-dev-token-input"
-              />
-              <Button
-                small
-                testID="welcome-dev-login-btn"
-                variant="secondary"
-                title={devBusy ? '...' : 'Dev: sign in via test JWT'}
-                disabled={devBusy || !devToken}
-                onPress={async () => {
-                  setDevBusy(true);
-                  try {
-                    await runDevOnboard({
-                      backendUrl: devBackend,
-                      token: devToken,
-                      deviceTag: 'sim',
-                      verify: true,
-                    });
-                    Alert.alert('Dev sign-in OK', 'See logs for [VERIFY] line.');
-                    navigation.navigate('KeyGen');
-                  } catch (e: any) {
-                    Alert.alert('Dev sign-in failed', e?.message ?? String(e));
-                  } finally {
-                    setDevBusy(false);
-                  }
-                }}
-              />
-            </View>
-          )}
         </ScrollView>
       </SafeAreaView>
     </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  devBox: {
-    marginTop: 32,
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-  },
-  devLabel: { fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  devHint: { fontSize: 11, marginBottom: 8 },
-});

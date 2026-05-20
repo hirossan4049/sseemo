@@ -1,14 +1,11 @@
 /**
- * Dev-only programmatic onboarding + managed-backend roundtrip verifier.
+ * Programmatic onboarding + managed-backend roundtrip verifier.
  *
- * Used by the simulator E2E flow: Sign in with Apple is unreliable on the
- * simulator, so we drive onboarding via a deeplink that carries the shared
- * DEV_AUTH_TOKEN nonce. The endpoint (POST /auth/dev) on the backend is gated
- * by env (`ALLOW_DEV_AUTH=true`) so this is safe to ship; flip the env off
- * and the path goes cold.
- *
- * The code stays in the repo permanently because the dev button on
- * WelcomeScreen is gated by `__DEV__`, and the backend gate is server-side.
+ * Used by the simulator E2E flow: we drive onboarding via a deeplink so
+ * automated tests can exercise the full upload/download path without UI
+ * tapping. Now that auth is just `/auth/device` (anonymous, anyone can hit
+ * it) the deeplink doesn't need any shared secret — it just supplies a tag
+ * and (optionally) a verify mode.
  */
 
 import RNFS from 'react-native-fs';
@@ -42,10 +39,10 @@ import { downloadAndDecryptChunked } from '@/s3/chunkedDownload';
 import { pushIndex, pullIndex } from '@/storage/encryptedIndex';
 import { IndexEntry } from '@/storage/index';
 import { MANAGED_BACKEND_URL } from '@/config';
+import { authDevice } from '@/auth/deviceLogin';
 
 export interface DevOnboardParams {
   backendUrl?: string;
-  token: string;
   deviceTag?: string;
   /** If true, run the single 200KB upload/download/verify roundtrip. */
   verify?: boolean;
@@ -55,24 +52,6 @@ export interface DevOnboardParams {
   cleanup?: boolean;
 }
 
-/** Calls POST /auth/dev to mint a session JWT. */
-export async function authDev(
-  backendUrl: string,
-  token: string,
-  deviceTag: string,
-): Promise<{ token: string; userId: string }> {
-  const r = await fetch(`${backendUrl.replace(/\/$/, '')}/auth/dev`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token, deviceTag }),
-  });
-  if (!r.ok) {
-    const t = await r.text().catch(() => '');
-    throw new Error(`auth/dev failed: ${r.status} ${t}`);
-  }
-  return r.json() as any;
-}
-
 /**
  * Drive the entire onboarding + (optional) roundtrip programmatically.
  * Logs progress with `[VERIFY] ...` lines so the simulator log stream can be
@@ -80,10 +59,14 @@ export async function authDev(
  */
 export async function runDevOnboard(p: DevOnboardParams): Promise<void> {
   const backendUrl = p.backendUrl ?? MANAGED_BACKEND_URL;
-  const deviceTag = p.deviceTag ?? 'sim';
+  // E2E tag from the deeplink. Pad short tags so they pass the server's
+  // 8-char minimum on `deviceTag`.
+  const rawTag = p.deviceTag ?? 'sim';
+  const deviceTag =
+    rawTag.length >= 8 ? rawTag : (rawTag + '-e2e-pad').slice(0, 16);
   console.log(`[VERIFY] devOnboard start backend=${backendUrl} tag=${deviceTag}`);
 
-  const { token: jwt, userId } = await authDev(backendUrl, p.token, deviceTag);
+  const { token: jwt, userId } = await authDevice(backendUrl, deviceTag);
   console.log(`[VERIFY] devOnboard authed userId=${userId}`);
 
   const creds: BucketCredentials = {

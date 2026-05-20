@@ -41,18 +41,16 @@ export default function App() {
     })();
   }, []);
 
-  // Dev-only deeplink: `secstorage://dev-onboard?token=...&tag=...&verify=1&cleanup=1`
+  // E2E deeplink: `secstoragedev://onboard?tag=...&verify=1|multi&cleanup=1`
   // drives the managed-backend onboarding + roundtrip without UI interaction.
-  // Backend gate (`ALLOW_DEV_AUTH`) is what actually keeps prod safe.
+  // Auth is now anonymous device-bound (`/auth/device`), so no token is
+  // needed — anyone with a deviceTag can sign in. The deeplink is gated by
+  // __DEV__ to keep automation surface off in production builds.
   useEffect(() => {
     if (!__DEV__) return;
     async function handle(url: string | null) {
       if (!url) return;
       try {
-        // Parse `secstorage://dev-onboard?k=v&...` without depending on whatwg URL.
-        // Accept either `secstorage://dev-onboard?...` or the conflict-free
-        // dev-only scheme `secstoragedev://onboard?...` (expo-dev-client owns
-        // the `secstorage://` scheme on first launch and may swallow it).
         const m = /^(secstorage|secstoragedev):\/\/([^/?]+)(?:\?(.*))?$/.exec(url);
         if (!m || (m[2] !== 'dev-onboard' && m[2] !== 'onboard')) return;
         const params = new Map<string, string>();
@@ -62,20 +60,14 @@ export default function App() {
           const v = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1));
           params.set(k, v);
         }
-        const token = params.get('token') ?? '';
         const tag = params.get('tag') ?? 'sim';
         const backendUrl = params.get('backend') || undefined;
         const verifyParam = params.get('verify') ?? '';
         const verify = verifyParam === '1';
         const verifyMulti = verifyParam === 'multi';
         const cleanup = params.get('cleanup') === '1';
-        if (!token) {
-          console.log('[VERIFY] dev-onboard missing token');
-          return;
-        }
         await runDevOnboard({
           backendUrl,
-          token,
           deviceTag: tag,
           verify,
           verifyMulti,
