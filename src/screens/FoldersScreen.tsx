@@ -4,12 +4,12 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
   RefreshControl,
   Alert,
   TextInput,
   Share,
   Platform,
+  Pressable,
 } from 'react-native';
 import QuickCrypto from 'react-native-quick-crypto';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,10 +26,13 @@ import { downloadAndDecrypt } from '@/s3/download';
 import { downloadAndDecryptChunked } from '@/s3/chunkedDownload';
 import { getMaster } from '@/state/keyStore';
 import RNFS from 'react-native-fs';
+import { useTheme, radii, type } from '@/theme';
+import { Screen, NavBar, IconButton, FAB, Button } from '@/components/ui';
 
 type SortKey = 'name' | 'size' | 'mtime';
 
 export default function FoldersScreen() {
+  const t = useTheme();
   const [stack, setStack] = useState<(string | null)[]>([null]);
   const [items, setItems] = useState<IndexEntry[]>([]);
   const [sort, setSort] = useState<SortKey>('name');
@@ -78,15 +81,11 @@ export default function FoldersScreen() {
   async function moveSelected() {
     if (selection.size === 0) return;
     const folders = items.filter(i => i.isFolder && !selection.has(i.id));
-    Alert.alert(
-      '移動先',
-      '',
-      [
-        { text: 'ルート', onPress: () => doMove(null) },
-        ...folders.map(f => ({ text: f.name, onPress: () => doMove(f.id) })),
-        { text: 'キャンセル', style: 'cancel' as const },
-      ],
-    );
+    Alert.alert('移動先', '', [
+      { text: 'ルート', onPress: () => doMove(null) },
+      ...folders.map(f => ({ text: f.name, onPress: () => doMove(f.id) })),
+      { text: 'キャンセル', style: 'cancel' as const },
+    ]);
   }
 
   async function doMove(target: string | null) {
@@ -102,14 +101,9 @@ export default function FoldersScreen() {
       Alert.alert('エラー', 'ロック中またはバケット未設定');
       return;
     }
-    // 平文を DocumentDirectory (Files.app/iCloud バックアップ対象) に書かない。
-    // CachesDirectory 配下の opaque サブディレクトリへ復号 → Share シートで
-    // ユーザー操作で外部に出してもらい、終了後 shred する (spec §5)。
     const opaqueDir = `${RNFS.CachesDirectoryPath}/ssf-share`;
     await RNFS.mkdir(opaqueDir).catch(() => {});
     const opaqueId = Buffer.from(QuickCrypto.randomBytes(16) as any).toString('hex');
-    // ファイル名の拡張子だけ Share シートのアプリ振り分けに必要なので保持。
-    // ベース名は opaque (元ファイル名はパスに含めない)。
     const ext = (() => {
       const dot = item.name.lastIndexOf('.');
       return dot > 0 ? item.name.slice(dot) : '';
@@ -132,10 +126,8 @@ export default function FoldersScreen() {
           localPath: out,
         });
       }
-      // iCloud バックアップから除外 (NSURLIsExcludedFromBackupKey)
       try {
         if (Platform.OS === 'ios' && (RNFS as any).setReadable) {
-          // RN-FS には setProtectionLevel(iOS) はあるが API が版で異なる。best-effort。
           await (RNFS as any).setReadable?.(out, false);
         }
       } catch {
@@ -148,15 +140,12 @@ export default function FoldersScreen() {
             : { url: `file://${out}`, message: item.name, title: item.name },
         );
       } finally {
-        // 短い TTL: Share シートが閉じたら即削除。Android では share アプリが
-        // まだ読んでいる可能性があるので 5秒 grace.
         const ttlMs = Platform.OS === 'android' ? 5000 : 0;
         setTimeout(() => {
           RNFS.unlink(out).catch(() => {});
         }, ttlMs);
       }
     } catch (e: any) {
-      // 失敗時も部分復号ファイルを残さない
       await RNFS.unlink(out).catch(() => {});
       Alert.alert('失敗', e.message);
     }
@@ -179,87 +168,167 @@ export default function FoldersScreen() {
   }
 
   const selecting = selection.size > 0;
+  const crumbTitle = stack.length === 1 ? 'すべてのファイル' : '中身';
 
   return (
-    <View style={s.root} testID="folders-screen">
-      <TextInput
-        placeholder="検索"
-        value={query}
-        onChangeText={setQuery}
-        onSubmitEditing={load}
-        style={s.search}
-      />
-      <View style={s.toolbar}>
-        {stack.length > 1 && !query && (
-          <TouchableOpacity onPress={() => setStack(stack.slice(0, -1))}>
-            <Text style={s.tool}>← 戻る</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={() =>
-            setSort(sort === 'name' ? 'size' : sort === 'size' ? 'mtime' : 'name')
-          }>
-          <Text style={s.tool}>並び: {sort}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={newFolder}>
-          <Text style={s.tool}>＋フォルダ</Text>
-        </TouchableOpacity>
-        {selecting && (
+    <Screen testID="folders-screen">
+      <NavBar
+        sub="フォルダ"
+        title={crumbTitle}
+        leading={
+          stack.length > 1 ? (
+            <Pressable
+              onPress={() => setStack(stack.slice(0, -1))}
+              hitSlop={10}
+              style={{ marginBottom: 4 }}>
+              <Text style={{ color: t.text, fontSize: 18 }}>‹ 戻る</Text>
+            </Pressable>
+          ) : null
+        }
+        trailing={
           <>
-            <TouchableOpacity onPress={moveSelected}>
-              <Text style={s.tool}>移動 ({selection.size})</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={delSelected}>
-              <Text style={[s.tool, { color: '#c33' }]}>削除</Text>
-            </TouchableOpacity>
+            <IconButton
+              onPress={() =>
+                setSort(sort === 'name' ? 'size' : sort === 'size' ? 'mtime' : 'name')
+              }>
+              <Text style={{ color: t.text, fontSize: 14 }}>↕</Text>
+            </IconButton>
+            <IconButton onPress={newFolder}>
+              <Text style={{ color: t.text, fontSize: 18 }}>+</Text>
+            </IconButton>
           </>
-        )}
+        }
+      />
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <View
+          style={{
+            backgroundColor: t.surface2,
+            borderRadius: radii.lg,
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+          <Text style={{ color: t.text3, fontSize: 14 }}>🔍</Text>
+          <TextInput
+            placeholder="検索"
+            placeholderTextColor={t.text3}
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={load}
+            style={{ flex: 1, color: t.text, fontSize: 15, padding: 0 }}
+          />
+        </View>
       </View>
+
+      {selecting && (
+        <View
+          style={{
+            flexDirection: 'row',
+            paddingHorizontal: 16,
+            gap: 8,
+            paddingBottom: 8,
+          }}>
+          <Button small variant="secondary" title={`移動 (${selection.size})`} onPress={moveSelected} />
+          <Button small variant="danger" title="削除" onPress={delSelected} />
+        </View>
+      )}
+
       <FlatList
         data={items}
         keyExtractor={x => x.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={load} tintColor={t.text3} />
+        }
         renderItem={({ item }) => {
           const sel = selection.has(item.id);
           return (
-            <TouchableOpacity
-              style={[s.row, sel && s.rowSel]}
+            <Pressable
               onPress={() => {
                 if (selecting) toggleSel(item.id);
                 else if (item.isFolder) setStack([...stack, item.id]);
                 else downloadItem(item);
               }}
-              onLongPress={() => toggleSel(item.id)}>
-              <Text style={s.icon}>{item.isFolder ? '📁' : '📄'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text>{item.name}</Text>
-                <Text style={s.sub}>
+              onLongPress={() => toggleSel(item.id)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingVertical: 11,
+                paddingHorizontal: 8,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: t.border,
+                backgroundColor: sel
+                  ? t.accentSoft
+                  : pressed
+                    ? t.surface2
+                    : 'transparent',
+                borderRadius: sel ? radii.md : 0,
+              })}>
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  backgroundColor: t.surface2,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Text style={{ fontSize: 18, color: item.isFolder ? t.accentText : t.text2 }}>
+                  {item.isFolder ? '📁' : '📄'}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 14.5, fontWeight: '500', color: t.text }}>
+                  {item.name}
+                </Text>
+                <Text style={[type.num, { fontSize: 11.5, color: t.text3, marginTop: 2 }]}>
                   {item.isFolder ? '—' : formatSize(item.plainSize)}
                 </Text>
               </View>
-              {sel && <Text>✓</Text>}
-            </TouchableOpacity>
+              {sel ? (
+                <Text style={{ color: t.accentText, fontSize: 14 }}>✓</Text>
+              ) : (
+                <Text style={{ color: t.text3, fontSize: 14 }}>›</Text>
+              )}
+            </Pressable>
           );
         }}
-        ListEmptyComponent={<Text style={s.empty}>まだ何もありません</Text>}
+        ListEmptyComponent={
+          <Text
+            style={{
+              textAlign: 'center',
+              marginTop: 48,
+              color: t.text3,
+              fontSize: 13,
+            }}>
+            まだ何もありません
+          </Text>
+        }
       />
-      <TouchableOpacity
+
+      <FAB
         testID="folders-fab-document"
-        style={[s.fab, { bottom: 90, backgroundColor: '#5a5a8a' }]}
+        rightOffset={84}
         onPress={async () => {
           try {
             const n = await pickAndImportDocuments(parentId);
             Alert.alert('しまっておきました', `${n} 件、鍵をかけて送りました。`);
             load();
           } catch (e: any) {
-            if (!/cancel/i.test(e.message ?? '')) Alert.alert('うまくいきませんでした', e.message);
+            if (!/cancel/i.test(e.message ?? ''))
+              Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
-        <Text style={s.fabText}>📄</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+        <Text style={{ color: t.bg, fontSize: 22 }}>📄</Text>
+      </FAB>
+      <FAB
         testID="folders-fab"
-        style={s.fab}
         onPress={async () => {
           try {
             const n = await pickAndImport(parentId);
@@ -269,9 +338,9 @@ export default function FoldersScreen() {
             Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
-        <Text style={s.fabText}>+</Text>
-      </TouchableOpacity>
-    </View>
+        <Text style={{ color: t.bg, fontSize: 26, lineHeight: 28 }}>+</Text>
+      </FAB>
+    </Screen>
   );
 }
 
@@ -281,47 +350,3 @@ function formatSize(n: number): string {
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
-
-const s = StyleSheet.create({
-  root: { flex: 1 },
-  search: {
-    margin: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    gap: 12,
-  },
-  tool: { color: '#007aff', marginRight: 12 },
-  row: {
-    flexDirection: 'row',
-    padding: 12,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  rowSel: { backgroundColor: '#e0f0ff' },
-  icon: { fontSize: 20, marginRight: 12 },
-  sub: { fontSize: 11, color: '#888' },
-  empty: { textAlign: 'center', marginTop: 48, color: '#888' },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007aff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  fabText: { color: '#fff', fontSize: 28, fontWeight: '300' },
-});
