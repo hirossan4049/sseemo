@@ -81,6 +81,19 @@ export async function encryptAndUpload(opts: UploadOptions): Promise<void> {
     }
 
     await completeMultipartUpload(opts.creds, opts.remoteKey, uploadId, parts);
+    // BYO: 使用量を計測サーバへ報告 (60sスロットル / managed は内部で no-op)
+    try {
+      await usageMod.reportUsageNow();
+    } catch {
+      /* best-effort */
+    }
+    // 80/95% 閾値の local notification を投げる
+    try {
+      const { notifyOnThreshold } = require('@/state/usageNotify');
+      await notifyOnThreshold(opts.creds.mode);
+    } catch {
+      /* best-effort */
+    }
   } catch (e) {
     await abortMultipartUpload(opts.creds, opts.remoteKey, uploadId).catch(() => {});
     throw e;

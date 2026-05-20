@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import { requestNotificationPermissionOnce } from '@/state/usageNotify';
 
 /**
  * spec §8 オンボーディング step 5/6:
@@ -35,6 +36,8 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
           );
           setGranted(r === PermissionsAndroid.RESULTS.GRANTED);
         }
+        // spec §4: 80/95% 容量通知用のローカル通知許可も同時に依頼
+        await requestNotificationPermissionOnce().catch(() => {});
       } catch {
         setGranted(false);
       }

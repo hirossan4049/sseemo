@@ -111,6 +111,17 @@ export async function encryptAndUploadChunked(
       manifestBuf,
       'application/json',
     );
+    try {
+      await usageMod.reportUsageNow();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      const { notifyOnThreshold } = require('@/state/usageNotify');
+      await notifyOnThreshold(opts.creds.mode);
+    } catch {
+      /* best-effort */
+    }
     return manifest;
   } finally {
     if (!opts.useBackground) {
