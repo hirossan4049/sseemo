@@ -1,0 +1,64 @@
+# Full real onboarding via UI:
+#   Welcome (はじめる) -> /auth/device device-bound sign-in
+#   BucketSetup (おまかせ/マネージド) -> deviceLogin returns managed creds
+#   KeyGen (12-word mnemonic) -> reveal + ack + commit
+#   PermissionsTour (perm slide + summary slide)
+#   -> assertVisible folders-fab on the Folders home tab.
+appId: org.reactjs.native.example.SecStorage
+---
+- launchApp:
+    clearKeychain: true
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 10000
+- runFlow: ../subflows/dismiss_storekit.yaml
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 60000
+- tapOn:
+    id: "welcome-start-btn"
+- extendedWaitUntil:
+    visible:
+      id: "bucket-setup-screen"
+    timeout: 30000
+- tapOn:
+    id: "bucket-managed-btn"
+- tapOn:
+    id: "bucket-continue-btn"
+- extendedWaitUntil:
+    visible:
+      id: "keygen-screen"
+    timeout: 30000
+- tapOn:
+    id: "keygen-reveal-btn"
+- tapOn:
+    id: "keygen-wrote-down-checkbox"
+- tapOn:
+    id: "keygen-continue-btn"
+- extendedWaitUntil:
+    visible:
+      id: "tour-perm-screen"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Allow Access to All Photos"
+    commands:
+      - tapOn: "Allow Access to All Photos"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- tapOn:
+    id: "tour-next-btn"
+- extendedWaitUntil:
+    visible:
+      id: "tour-done-screen"
+    timeout: 15000
+- tapOn:
+    id: "tour-done-btn"
+- extendedWaitUntil:
+    visible:
+      id: "folders-fab"
+    timeout: 30000

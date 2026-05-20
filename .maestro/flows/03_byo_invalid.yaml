@@ -1,0 +1,40 @@
+# BYO mode wires up the bucket-setup form. We try an invalid endpoint and
+# expect the connection probe (headBucket) to fail, surfacing as an
+# "接続に失敗しました" alert.
+appId: org.reactjs.native.example.SecStorage
+---
+- launchApp:
+    clearKeychain: true
+    clearState: true
+- runFlow: ../subflows/dismiss_storekit.yaml
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 60000
+- tapOn:
+    id: "welcome-start-btn"
+- extendedWaitUntil:
+    visible:
+      id: "bucket-setup-screen"
+    timeout: 30000
+- tapOn:
+    id: "bucket-byo-btn"
+- assertVisible: "つなぎ先のアドレス"
+- tapOn: "つなぎ先のアドレス"
+- eraseText: 64
+- inputText: "https://example.invalid"
+- hideKeyboard
+- tapOn: "入れものの名前"
+- inputText: "ssf-test"
+- hideKeyboard
+- tapOn: "アクセスキー"
+- inputText: "AKIAINVALID"
+- hideKeyboard
+- tapOn: "ひみつのキー"
+- inputText: "secretinvalid"
+- hideKeyboard
+- tapOn:
+    id: "bucket-continue-btn"
+- extendedWaitUntil:
+    visible: "接続に失敗しました"
+    timeout: 30000

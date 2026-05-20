@@ -1,0 +1,56 @@
+# Reuses the dev deeplink to land us onboarded on Folders without UI
+# typing, then drives Settings:
+#   - export recovery phrase (Alert with 12 words)
+#   - delete account (destructive confirm) -> returns to Welcome.
+appId: org.reactjs.native.example.SecStorage
+---
+- launchApp:
+    clearKeychain: true
+    clearState: true
+- runFlow: ../subflows/dismiss_storekit.yaml
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 60000
+- openLink: "secstoragedev://onboard?tag=maestro-settings"
+- extendedWaitUntil:
+    visible:
+      id: "folders-fab"
+    timeout: 120000
+- tapOn:
+    id: "tab-settings"
+- assertVisible:
+    id: "settings-screen"
+- scrollUntilVisible:
+    element:
+      id: "settings-export-mnemonic-btn"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "settings-export-mnemonic-btn"
+- extendedWaitUntil:
+    visible: "リカバリーフレーズ"
+    timeout: 10000
+- tapOn: "OK"
+- scrollUntilVisible:
+    element:
+      id: "settings-delete-account-btn"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "settings-delete-account-btn"
+- extendedWaitUntil:
+    visible: "すべて消しますか"
+    timeout: 10000
+- tapOn: "消す"
+- extendedWaitUntil:
+    visible: "消しました"
+    timeout: 30000
+- tapOn: "OK"
+- stopApp
+- launchApp:
+    appId: org.reactjs.native.example.SecStorage
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 30000

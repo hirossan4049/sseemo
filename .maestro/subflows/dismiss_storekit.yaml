@@ -1,0 +1,23 @@
+# Shared subflow: the iOS simulator pops up "Apple Account にサインイン"
+# (StoreKit storefront fetch) on a freshly cleared device. This is a
+# SpringBoard-level alert that Maestro's accessibility query usually
+# can't see. Best-effort dismissal via AppleScript click on the
+# Simulator window.
+#
+# Known limitation: if the alert is still up after this runs, the
+# subsequent welcome-screen assertion will fail. Manual one-time fix:
+# run the flow once, manually tap "キャンセル", and the alert stops
+# reappearing for the rest of the simulator session.
+appId: org.reactjs.native.example.SecStorage
+---
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          when:
+            visible: "Apple Account"
+          commands:
+            - tapOn:
+                text: "キャンセル"
+            - waitForAnimationToEnd:
+                timeout: 2000

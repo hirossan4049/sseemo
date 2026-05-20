@@ -1,0 +1,24 @@
+# Drives runDevOnboard via the secstoragedev:// deeplink with verify=1.
+# The handler signs in to /auth/device, allocates a managed bucket, writes a
+# 200 KB blob, downloads it, byte-compares it, and emits
+# "[VERIFY] managed roundtrip OK bytes=...".
+#
+# We tail the simulator's log to /tmp/sim-maestro.log around the deeplink
+# fire, then assert the VERIFY line is present. After success, the App.tsx
+# url handler flips onboarded+unlocked, landing us on Folders.
+appId: org.reactjs.native.example.SecStorage
+---
+- launchApp:
+    clearKeychain: true
+    clearState: true
+- runFlow: ../subflows/dismiss_storekit.yaml
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 60000
+- runScript:
+    file: ../scripts/roundtrip.sh
+- extendedWaitUntil:
+    visible:
+      id: "folders-fab"
+    timeout: 120000
