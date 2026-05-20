@@ -67,10 +67,23 @@ export async function encryptAndUploadChunked(
     .slice(2, 8)}`;
   await RNFS.mkdir(tmpDir);
 
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const base64js: {
+    fromByteArray: (u: Uint8Array) => string;
+    toByteArray: (s: string) => Uint8Array;
+  } = require('base64-js');
+  const toB64 = (b: Uint8Array): string => {
+    const u =
+      b.byteOffset === 0 && b.byteLength === b.buffer.byteLength
+        ? new Uint8Array(b.buffer)
+        : new Uint8Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+    return base64js.fromByteArray(u);
+  };
+
   const headerBlob = enc.emitHeader();
   const manifest: ChunkManifest = {
     version: 1,
-    header: headerBlob.toString('base64'),
+    header: toB64(headerBlob),
     chunkSize,
     plainSize: total,
     chunks: [],
@@ -83,19 +96,24 @@ export async function encryptAndUploadChunked(
     while (offset < total) {
       const readSize = Math.min(chunkSize, total - offset);
       const b64 = await RNFS.read(opts.localPath, readSize, offset, 'base64');
-      const plain = Buffer.from(b64, 'base64');
+      const plainU8 = base64js.toByteArray(b64);
+      const plain = Buffer.from(plainU8.buffer, plainU8.byteOffset, plainU8.byteLength);
       offset += readSize;
 
       const ctChunk = enc.encryptChunk(plain);
       const chunkKey = `${opts.remotePrefix}/${index}.c`;
-      const chunkPath = `${tmpDir}/${index}.c`;
-      await RNFS.writeFile(chunkPath, ctChunk.toString('base64'), 'base64');
 
       if (opts.useBackground) {
+        // Background uploader needs a file on disk it can hand to
+        // NSURLSession. Materialize the chunk only on this path; the
+        // in-memory PUT below feeds putObject directly so we skip the
+        // base64 round-trip that drags in the (currently unlinked)
+        // native quick-base64 turbomodule.
+        const chunkPath = `${tmpDir}/${index}.c`;
+        await RNFS.writeFile(chunkPath, toB64(ctChunk), 'base64');
         await backgroundPutObject(opts.creds, chunkKey, chunkPath);
       } else {
         await putObject(opts.creds, chunkKey, ctChunk);
-        await RNFS.unlink(chunkPath).catch(() => {});
       }
 
       manifest.chunks.push({ index, key: chunkKey, size: ctChunk.length });
