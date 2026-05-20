@@ -321,7 +321,7 @@ function sha256(b: Buffer): string {
 maybe('E2E managed backend round-trip', () => {
   jest.setTimeout(10 * 60 * 1000);
 
-  const base = (BACKEND as string).replace(/\/$/, '');
+  const base = (BACKEND ?? '').replace(/\/$/, '');
   const sub = `e2e-test-${Date.now()}`;
   let client: Client;
   let master: Buffer;
