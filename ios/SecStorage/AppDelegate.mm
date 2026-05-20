@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 #import <BackgroundTasks/BackgroundTasks.h>
 #import <React/RCTBundleURLProvider.h>
+#import <React/RCTLinkingManager.h>
 
 @implementation AppDelegate
 
@@ -38,6 +39,16 @@
   req.requiresNetworkConnectivity = YES;
   req.earliestBeginDate = [NSDate dateWithTimeIntervalSinceNow:60 * 30];
   [[BGTaskScheduler sharedScheduler] submitTaskRequest:req error:nil];
+}
+
+// Forward custom URL scheme deeplinks (secstorage://, secstoragedev://) to
+// RCTLinkingManager so the JS Linking listener fires. Without this, the
+// dev-onboard flow used by Maestro E2E silently no-ops.
+- (BOOL)application:(UIApplication *)application
+            openURL:(NSURL *)url
+            options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options
+{
+  return [RCTLinkingManager application:application openURL:url options:options];
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge

@@ -13,11 +13,12 @@
     "test": "jest",
     "lint": "eslint .",
     "tsc": "tsc --noEmit",
-    "cli:decrypt": "ts-node --project cli/tsconfig.json cli/decrypt.ts"
+    "cli:decrypt": "ts-node --project cli/tsconfig.json cli/decrypt.ts",
+    "maestro:test": "bash .maestro/scripts/run.sh .maestro/flows",
+    "maestro:onboard": "bash .maestro/scripts/run.sh .maestro/flows/01_onboard_managed.yaml"
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",
-    "@invertase/react-native-apple-authentication": "^2.4.0",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@react-navigation/bottom-tabs": "^6.6.0",
     "@react-navigation/native": "^6.1.18",

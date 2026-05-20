@@ -15,7 +15,7 @@ src/
   s3/          S3互換クライアント (SigV4) + マルチパート
   storage/     暗号化済みインデックス (AsyncStorage)
   state/       鍵 / バケット状態
-  auth/        Sign in with Apple
+  auth/        端末バインドの匿名サインイン (/auth/device)
   iap/         App Store IAP (¥480/月/バケット)
   photos/      写真ライブラリ取り込み + サムネイル生成
   navigation/  3タブ + オンボーディング
@@ -50,7 +50,6 @@ npx ts-node cli/decrypt.ts mnemonic.txt photo.ssf photo.jpg
 | 項目 | 状態 |
 | --- | --- |
 | `NSPhotoLibraryUsageDescription` / `NSFaceIDUsageDescription` | ✅ `ios/SecStorage/Info.plist` |
-| Sign in with Apple capability | ✅ `ios/SecStorage/SecStorage.entitlements` |
 | In-App Purchase capability | ✅ `ios/SecStorage/SecStorage.entitlements` |
 | `UIBackgroundModes` (`fetch` / `processing`) | ✅ Info.plist |
 | `BGTaskSchedulerPermittedIdentifiers` (`app.secstorage.autoimport`) | ✅ Info.plist |
