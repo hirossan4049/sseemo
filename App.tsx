@@ -50,10 +50,13 @@ export default function App() {
       if (!url) return;
       try {
         // Parse `secstorage://dev-onboard?k=v&...` without depending on whatwg URL.
-        const m = /^secstorage:\/\/([^/?]+)(?:\?(.*))?$/.exec(url);
-        if (!m || m[1] !== 'dev-onboard') return;
+        // Accept either `secstorage://dev-onboard?...` or the conflict-free
+        // dev-only scheme `secstoragedev://onboard?...` (expo-dev-client owns
+        // the `secstorage://` scheme on first launch and may swallow it).
+        const m = /^(secstorage|secstoragedev):\/\/([^/?]+)(?:\?(.*))?$/.exec(url);
+        if (!m || (m[2] !== 'dev-onboard' && m[2] !== 'onboard')) return;
         const params = new Map<string, string>();
-        for (const kv of (m[2] ?? '').split('&').filter(Boolean)) {
+        for (const kv of (m[3] ?? '').split('&').filter(Boolean)) {
           const i = kv.indexOf('=');
           const k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
           const v = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1));
