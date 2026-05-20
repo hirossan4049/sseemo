@@ -67,22 +67,32 @@ export default function BucketSetupScreen({ navigation }: any) {
 
   return (
     <ScrollView contentContainerStyle={s.root} testID="bucket-setup-screen">
-      <Text style={s.title}>バケット選択</Text>
-      <View style={s.row}>
-        <Button
-          testID="bucket-managed-btn"
-          title={`マネージド ${mode === 'managed' ? '✓' : ''}`}
-          onPress={() => setMode('managed')}
-        />
-        <View style={{ width: 8 }} />
-        <Button
-          testID="bucket-byo-btn"
-          title={`互換S3 ${mode === 'byo' ? '✓' : ''}`}
-          onPress={() => setMode('byo')}
-        />
-      </View>
+      <Text style={s.title}>どこに置きますか?</Text>
+      <Text style={s.lead}>
+        どちらを選んでも、安全さは変わりません。あとから変えられます。
+      </Text>
+      <View style={{ height: 16 }} />
+      <ModeCard
+        testID="bucket-managed-btn"
+        active={mode === 'managed'}
+        title="マネージド"
+        body="すぐ使えるおまかせプラン。ストレージ料金もアプリ料金に含まれます。"
+        onPress={() => setMode('managed')}
+      />
+      <View style={{ height: 8 }} />
+      <ModeCard
+        testID="bucket-byo-btn"
+        active={mode === 'byo'}
+        title="BYO"
+        body="お持ちのストレージにつなぎます。ストレージ料金はご利用先にお支払いください。"
+        onPress={() => setMode('byo')}
+      />
       {mode === 'byo' && (
-        <>
+        <View style={{ marginTop: 16 }}>
+          <Text style={s.subTitle}>つなぎ先を教えてください</Text>
+          <Text style={s.subLead}>
+            S3互換ならどこでも大丈夫です（Cloudflare R2、Wasabi、Backblazeなど）
+          </Text>
           <Field label="Endpoint" value={endpoint} onChange={setEndpoint} />
           <Field label="Region" value={region} onChange={setRegion} />
           <Field label="Bucket" value={bucket} onChange={setBucket} />
@@ -93,7 +103,7 @@ export default function BucketSetupScreen({ navigation }: any) {
             onChange={setSecretKey}
             secure
           />
-        </>
+        </View>
       )}
       <View style={{ height: 24 }} />
       <Button
@@ -103,6 +113,32 @@ export default function BucketSetupScreen({ navigation }: any) {
         disabled={testing}
       />
     </ScrollView>
+  );
+}
+
+function ModeCard({
+  active,
+  title,
+  body,
+  onPress,
+  testID,
+}: {
+  active: boolean;
+  title: string;
+  body: string;
+  onPress: () => void;
+  testID?: string;
+}) {
+  return (
+    <Text
+      testID={testID}
+      onPress={onPress}
+      style={[s.card, active && s.cardActive]}
+    >
+      <Text style={s.cardTitle}>{active ? '◉ ' : '○ '}{title}</Text>
+      {'\n'}
+      <Text style={s.cardBody}>{body}</Text>
+    </Text>
   );
 }
 
@@ -134,8 +170,20 @@ function Field({
 
 const s = StyleSheet.create({
   root: { padding: 24 },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 16 },
-  row: { flexDirection: 'row', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '700' },
+  lead: { fontSize: 14, color: '#666', marginTop: 8, lineHeight: 20 },
+  subTitle: { fontSize: 18, fontWeight: '600' },
+  subLead: { fontSize: 13, color: '#666', marginTop: 6, marginBottom: 8, lineHeight: 18 },
+  card: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 14,
+    backgroundColor: '#fff',
+  },
+  cardActive: { borderColor: '#222', backgroundColor: '#f8f8f8' },
+  cardTitle: { fontSize: 16, fontWeight: '600' },
+  cardBody: { fontSize: 13, color: '#666', lineHeight: 19 },
   label: { fontSize: 12, color: '#666', marginBottom: 4 },
   input: {
     borderWidth: 1,
