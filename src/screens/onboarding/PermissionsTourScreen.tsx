@@ -6,7 +6,6 @@ import {
   Button,
   Platform,
   PermissionsAndroid,
-  Alert,
 } from 'react-native';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import { requestNotificationPermissionOnce } from '@/state/usageNotify';
@@ -18,7 +17,6 @@ import { requestNotificationPermissionOnce } from '@/state/usageNotify';
  */
 export default function PermissionsTourScreen({ onDone }: { onDone: () => void }) {
   const [stage, setStage] = useState<'perm' | 'tour'>('perm');
-  const [tourIdx, setTourIdx] = useState(0);
   const [granted, setGranted] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -47,14 +45,20 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
   if (stage === 'perm') {
     return (
       <View style={s.root}>
-        <Text style={s.title}>写真へのアクセス</Text>
+        <Text style={s.title}>写真もあずかります</Text>
         <Text style={s.body}>
-          自動取り込みのため写真ライブラリへのアクセスを許可してください。
-          後で設定アプリから変更できます。
+          許可していただくと、新しい写真は鍵をかけて自動でしまっておきます。いつでもやめられます。
         </Text>
+        <View style={s.bullets}>
+          <Text style={s.bullet}>・見るだけ。書いたり消したりはしません。</Text>
+          <Text style={s.bullet}>・Wi-Fiのときだけ。通信量は気にしなくて大丈夫です。</Text>
+          <Text style={s.bullet}>
+            ・小さな写真も鍵つきで。サッと開けるよう手元にも置いておきます。
+          </Text>
+        </View>
         {granted === false && (
           <Text style={s.warn}>
-            権限が拒否されました。手動アップロードのみ利用可能です。
+            今は許可いただけませんでした。あとから設定アプリで変えられます。
           </Text>
         )}
         <View style={{ height: 24 }} />
@@ -63,34 +67,26 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
     );
   }
 
-  const slides = [
-    {
-      title: 'フォルダタブ',
-      body: 'ファイル管理アプリ風のヒエラルキー型ストレージ。検索・並び替え・選択・移動。',
-    },
-    {
-      title: 'アルバムタブ',
-      body: '写真.app風UI。日付グルーピングで一覧。自動取り込み対応。',
-    },
-    {
-      title: '設定タブ',
-      body: 'バケット切替、鍵管理、生体認証ロック、容量表示。',
-    },
-  ];
-  const slide = slides[tourIdx];
-  const isLast = tourIdx === slides.length - 1;
   return (
     <View style={s.root}>
-      <Text style={s.title}>{slide.title}</Text>
-      <Text style={s.body}>{slide.body}</Text>
+      <Text style={s.title}>準備できました</Text>
+      <Text style={s.body}>使うのはこの3つだけ。</Text>
+      <View style={s.tabList}>
+        <TabRow label="フォルダ" body="ファイルを置く場所" />
+        <TabRow label="アルバム" body="写真を日付で" />
+        <TabRow label="設定" body="保存先と鍵のこと" />
+      </View>
       <View style={{ height: 24 }} />
-      <Button
-        title={isLast ? '使い始める' : '次へ'}
-        onPress={() => {
-          if (isLast) onDone();
-          else setTourIdx(tourIdx + 1);
-        }}
-      />
+      <Button title="使い始める" onPress={onDone} />
+    </View>
+  );
+}
+
+function TabRow({ label, body }: { label: string; body: string }) {
+  return (
+    <View style={s.tabRow}>
+      <Text style={s.tabLabel}>{label}</Text>
+      <Text style={s.tabBody}>/ {body}</Text>
     </View>
   );
 }
@@ -99,5 +95,11 @@ const s = StyleSheet.create({
   root: { flex: 1, padding: 24, justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '700', marginBottom: 12 },
   body: { color: '#555', lineHeight: 20 },
+  bullets: { marginTop: 16 },
+  bullet: { color: '#555', lineHeight: 22, fontSize: 13 },
   warn: { color: '#c33', marginTop: 12 },
+  tabList: { marginTop: 16 },
+  tabRow: { flexDirection: 'row', alignItems: 'baseline', paddingVertical: 6 },
+  tabLabel: { fontSize: 16, fontWeight: '600', width: 96 },
+  tabBody: { color: '#555' },
 });
