@@ -13,5 +13,6 @@ vendor/
 *.log
 .DS_Store
 .env
+.claude/
 server/.wrangler/
 server/.dev.vars
