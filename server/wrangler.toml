@@ -1,0 +1,31 @@
+name = "secstorage-server"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# R2 bucket holding user-encrypted blobs and index.bin.
+[[r2_buckets]]
+binding = "USER_DATA"
+bucket_name = "secstorage-user-data"
+
+# D1 database holding users / subscriptions / reservations.
+[[d1_databases]]
+binding = "DB"
+database_name = "secstorage"
+database_id = "REPLACE_WITH_D1_ID"
+
+# Plain config (non-secret). Override secrets via `wrangler secret put`.
+[vars]
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+APPLE_AUDIENCE = "com.secstorage.app"
+FREE_LIMIT_BYTES = "5368709120" # 5 GiB
+R2_ENDPOINT = "https://REPLACE_ACCOUNT_ID.r2.cloudflarestorage.com"
+R2_BUCKET = "secstorage-user-data"
+R2_REGION = "auto"
+PRESIGN_TTL_SECONDS = "900"
+
+# Secrets to set with `wrangler secret put`:
+#   JWT_SECRET              HS256 signing secret for our session JWTs
+#   R2_ACCESS_KEY_ID        Cloudflare R2 access key (for SigV4 presign)
+#   R2_SECRET_ACCESS_KEY    Cloudflare R2 secret key
+#   APP_STORE_SHARED_SECRET App Store Connect shared secret (legacy verifyReceipt)
