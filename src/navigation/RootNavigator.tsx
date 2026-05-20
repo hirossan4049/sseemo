@@ -1,17 +1,24 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FoldersScreen from '@/screens/FoldersScreen';
 import AlbumsScreen from '@/screens/AlbumsScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
 import { palettes } from '@/theme';
+import { AppIcon, type AppIconName } from '@/components/icons';
 
 const Tab = createBottomTabNavigator();
 
 const tabIcon =
-  (emoji: string) =>
-  ({ focused }: { focused: boolean }) => (
-    <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.55 }}>{emoji}</Text>
+  (name: AppIconName) =>
+  ({ focused, color }: { focused: boolean; color: string }) => (
+    <AppIcon
+      name={name}
+      color={color}
+      size={21}
+      strokeWidth={focused ? 2.4 : 2}
+    />
   );
 
 // Maestro-targetable tab buttons.
@@ -23,6 +30,7 @@ export default function RootTabs() {
   // We use the light palette here so the tab bar tone matches the design's
   // mocked iPhone frame. (Settings UI follows useColorScheme via useTheme.)
   const t = palettes.light;
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -34,7 +42,8 @@ export default function RootTabs() {
           borderTopColor: t.border,
           borderTopWidth: 0.5,
           paddingTop: 6,
-          height: 84,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 56 + Math.max(insets.bottom, 8),
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -47,7 +56,7 @@ export default function RootTabs() {
         component={FoldersScreen}
         options={{
           title: 'フォルダ',
-          tabBarIcon: tabIcon('📁'),
+          tabBarIcon: tabIcon('folder'),
           tabBarButton: tabButton('tab-folders'),
         }}
       />
@@ -56,7 +65,7 @@ export default function RootTabs() {
         component={AlbumsScreen}
         options={{
           title: 'アルバム',
-          tabBarIcon: tabIcon('🖼'),
+          tabBarIcon: tabIcon('image'),
           tabBarButton: tabButton('tab-albums'),
         }}
       />
@@ -65,7 +74,7 @@ export default function RootTabs() {
         component={SettingsScreen}
         options={{
           title: '設定',
-          tabBarIcon: tabIcon('⚙️'),
+          tabBarIcon: tabIcon('settings'),
           tabBarButton: tabButton('tab-settings'),
         }}
       />

@@ -5,7 +5,6 @@ import {
   ScrollView,
   Alert,
   Pressable,
-  SafeAreaView,
   StyleSheet,
 } from 'react-native';
 import { generate12WordMnemonic } from '@/crypto/mnemonic';
@@ -13,6 +12,7 @@ import { saveMnemonic } from '@/crypto/keychain';
 import { unlock } from '@/state/keyStore';
 import { useTheme, type, radii } from '@/theme';
 import { Button, Screen } from '@/components/ui';
+import { AppIcon } from '@/components/icons';
 
 export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
   const t = useTheme();
@@ -32,9 +32,8 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Screen>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+    <Screen testID="keygen-screen">
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
           <Text style={[type.h1, { color: t.text, marginBottom: 12 }]}>あなたの合言葉</Text>
           <Text
             style={{
@@ -90,6 +89,7 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
             ))}
             {!revealed && (
               <Pressable
+                testID="keygen-reveal-btn"
                 onPress={() => setRevealed(true)}
                 style={{
                   position: 'absolute',
@@ -102,7 +102,9 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
                   borderRadius: radii['2xl'],
                   backgroundColor: t.surface,
                 }}>
-                <Text style={{ fontSize: 22, marginBottom: 6 }}>👁</Text>
+                <View style={{ marginBottom: 6 }}>
+                  <AppIcon name="eye" color={t.text} size={24} />
+                </View>
                 <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }}>
                   タップして見る
                 </Text>
@@ -114,6 +116,7 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
           </View>
 
           <Pressable
+            testID="keygen-wrote-down-checkbox"
             onPress={() => setChecked(c => !c)}
             style={{
               marginTop: 20,
@@ -137,7 +140,7 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
                 marginTop: 1,
               }}>
               {checked && (
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓</Text>
+                <AppIcon name="check" color="#fff" size={14} strokeWidth={3} />
               )}
             </View>
             <Text style={{ flex: 1, color: t.text, fontSize: 13, lineHeight: 21 }}>
@@ -147,12 +150,12 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
 
           <View style={{ height: 16 }} />
           <Button
+            testID="keygen-continue-btn"
             title="次へ"
             onPress={commit}
             disabled={!checked || !revealed}
           />
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
     </Screen>
   );
 }

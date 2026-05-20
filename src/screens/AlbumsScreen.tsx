@@ -17,6 +17,7 @@ import { getMaster } from '@/state/keyStore';
 import { getActiveBucket } from '@/state/bucketStore';
 import { useTheme, radii, type } from '@/theme';
 import { Screen, NavBar, IconButton, FAB } from '@/components/ui';
+import { AppIcon } from '@/components/icons';
 
 const COLS = 3;
 const SIZE = Dimensions.get('window').width / COLS - 3;
@@ -53,7 +54,7 @@ export default function AlbumsScreen() {
         }
         trailing={
           <IconButton>
-            <Text style={{ color: t.text, fontSize: 14 }}>🔍</Text>
+            <AppIcon name="search" color={t.text} size={18} />
           </IconButton>
         }
       />
@@ -163,7 +164,7 @@ export default function AlbumsScreen() {
             Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
-        <Text style={{ color: t.bg, fontSize: 26, lineHeight: 28 }}>+</Text>
+        <AppIcon name="plus" color={t.bg} size={28} strokeWidth={2.4} />
       </FAB>
     </Screen>
   );
@@ -203,7 +204,7 @@ function Thumb({ entry }: { entry: IndexEntry }) {
       {uri ? (
         <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
       ) : (
-        <Text style={{ fontSize: 22 }}>🖼</Text>
+        <AppIcon name="image" color={t.text3} size={24} />
       )}
     </View>
   );

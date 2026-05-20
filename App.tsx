@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppState, ActivityIndicator, View, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootTabs from '@/navigation/RootNavigator';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
 import BucketSetupScreen from '@/screens/onboarding/BucketSetupScreen';
@@ -30,12 +31,15 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      await initIAP().catch(() => {});
       const m = await loadMnemonic();
       if (m) {
         setOnboarded(true);
         const k = await unlock();
         setLocked(!k);
+        // initIAP() triggers the Apple Account sign-in dialog on a freshly
+        // cleared simulator; only call it once the user is already past
+        // onboarding so first-launch / E2E flows aren't blocked by the modal.
+        initIAP().catch(() => {});
       }
       setReady(true);
     })();
@@ -108,40 +112,48 @@ export default function App() {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <SafeAreaProvider>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ActivityIndicator />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   if (onboarded && locked) {
-    return <LockScreen onUnlocked={() => setLocked(false)} />;
+    return (
+      <SafeAreaProvider>
+        <LockScreen onUnlocked={() => setLocked(false)} />
+      </SafeAreaProvider>
+    );
   }
 
   return (
-    <NavigationContainer
-      onStateChange={() => touch()}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {onboarded ? (
-          <Stack.Screen name="Main" component={RootTabs} />
-        ) : (
-          <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="BucketSetup" component={BucketSetupScreen} />
-            <Stack.Screen name="KeyGen">
-              {props => (
-                <KeyGenScreen
-                  {...props}
-                  onDone={() => (props.navigation as any).navigate('PermissionsTour')}
-                />
-              )}
-            </Stack.Screen>
-            <Stack.Screen name="PermissionsTour">
-              {() => <PermissionsTourScreen onDone={() => setOnboarded(true)} />}
-            </Stack.Screen>
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer
+        onStateChange={() => touch()}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {onboarded ? (
+            <Stack.Screen name="Main" component={RootTabs} />
+          ) : (
+            <>
+              <Stack.Screen name="Welcome" component={WelcomeScreen} />
+              <Stack.Screen name="BucketSetup" component={BucketSetupScreen} />
+              <Stack.Screen name="KeyGen">
+                {props => (
+                  <KeyGenScreen
+                    {...props}
+                    onDone={() => (props.navigation as any).navigate('PermissionsTour')}
+                  />
+                )}
+              </Stack.Screen>
+              <Stack.Screen name="PermissionsTour">
+                {() => <PermissionsTourScreen onDone={() => setOnboarded(true)} />}
+              </Stack.Screen>
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

@@ -5,7 +5,6 @@ import {
   Alert,
   ScrollView,
   Pressable,
-  SafeAreaView,
   StyleSheet,
 } from 'react-native';
 import { headBucket } from '@/s3/client';
@@ -56,8 +55,7 @@ export default function BucketSetupScreen({ navigation }: any) {
 
   return (
     <Screen testID="bucket-setup-screen">
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
           <Text style={[type.h1, { color: t.text, marginBottom: 12 }]}>
             どこに置きますか？
           </Text>
@@ -110,8 +108,7 @@ export default function BucketSetupScreen({ navigation }: any) {
             onPress={proceed}
             disabled={testing}
           />
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
     </Screen>
   );
 }

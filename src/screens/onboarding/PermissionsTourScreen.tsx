@@ -5,12 +5,12 @@ import {
   Platform,
   PermissionsAndroid,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import { requestNotificationPermissionOnce } from '@/state/usageNotify';
 import { useTheme, type, radii } from '@/theme';
 import { Button, Card, CardRow, Screen } from '@/components/ui';
+import { AppIcon, type AppIconName } from '@/components/icons';
 
 /**
  * spec §8 onboarding step 5/6:
@@ -45,9 +45,8 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
 
   if (stage === 'perm') {
     return (
-      <Screen>
-        <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+      <Screen testID="tour-perm-screen">
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
             <View
               style={{
                 width: 64,
@@ -58,7 +57,7 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
                 justifyContent: 'center',
                 marginBottom: 24,
               }}>
-              <Text style={{ fontSize: 28 }}>🖼</Text>
+              <AppIcon name="image" color={t.accentText} size={30} />
             </View>
             <Text style={[type.h1, { color: t.text, marginBottom: 12 }]}>写真もあずかります</Text>
             <Text style={{ fontSize: 14, color: t.text2, lineHeight: 24, marginBottom: 24 }}>
@@ -93,17 +92,15 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
               </Text>
             )}
             <View style={{ height: 24 }} />
-            <Button title="次へ" onPress={() => setStage('tour')} />
-          </ScrollView>
-        </SafeAreaView>
+            <Button testID="tour-next-btn" title="次へ" onPress={() => setStage('tour')} />
+        </ScrollView>
       </Screen>
     );
   }
 
   return (
-    <Screen>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+    <Screen testID="tour-done-screen">
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
           <Text
             style={{
               fontSize: 11,
@@ -120,9 +117,9 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
           </Text>
           <View style={{ gap: 12 }}>
             {[
-              { icon: '📁', t: 'フォルダ', s: 'ファイルを置く場所' },
-              { icon: '🖼', t: 'アルバム', s: '写真を日付で' },
-              { icon: '⚙️', t: '設定', s: '保存先と鍵のこと' },
+              { icon: 'folder', t: 'フォルダ', s: 'ファイルを置く場所' },
+              { icon: 'image', t: 'アルバム', s: '写真を日付で' },
+              { icon: 'settings', t: '設定', s: '保存先と鍵のこと' },
             ].map((r, i) => (
               <View
                 key={i}
@@ -145,7 +142,11 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                  <Text style={{ fontSize: 18 }}>{r.icon}</Text>
+                  <AppIcon
+                    name={r.icon as AppIconName}
+                    color={t.text2}
+                    size={20}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: t.text }}>
@@ -155,14 +156,13 @@ export default function PermissionsTourScreen({ onDone }: { onDone: () => void }
                     {r.s}
                   </Text>
                 </View>
-                <Text style={{ color: t.text3, fontSize: 18 }}>›</Text>
+                <AppIcon name="chevronRight" color={t.text3} size={18} />
               </View>
             ))}
           </View>
           <View style={{ height: 24 }} />
-          <Button title="使い始める" onPress={onDone} />
-        </ScrollView>
-      </SafeAreaView>
+          <Button testID="tour-done-btn" title="使い始める" onPress={onDone} />
+      </ScrollView>
     </Screen>
   );
 }

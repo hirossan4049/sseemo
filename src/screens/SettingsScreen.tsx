@@ -54,6 +54,7 @@ import {
   Wordmark,
   BrandMark,
 } from '@/components/ui';
+import { AppIcon } from '@/components/icons';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -364,7 +365,7 @@ export default function SettingsScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                  <Text style={{ color: t.text2, fontSize: 14 }}>☁</Text>
+                  <AppIcon name="cloud" color={t.text2} size={17} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: t.text }}>{id}</Text>
@@ -390,37 +391,37 @@ export default function SettingsScreen() {
           <Card>
             <CardRow onPress={exportMnemonic} testID="settings-export-mnemonic-btn">
               <View style={iconBox(t)}>
-                <Text style={{ color: t.text2 }}>🔑</Text>
+                <AppIcon name="key" color={t.text2} size={17} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={rowTitle(t)}>リカバリーフレーズを表示</Text>
                 <Text style={rowSub(t)}>画面に12語を表示します</Text>
               </View>
-              <Text style={{ color: t.text3 }}>›</Text>
+              <AppIcon name="chevronRight" color={t.text3} size={17} />
             </CardRow>
             <CardRow onPress={exportMnemonicToFile} testID="settings-export-mnemonic-file-btn">
               <View style={iconBox(t)}>
-                <Text style={{ color: t.text2 }}>⤓</Text>
+                <AppIcon name="arrowDownToLine" color={t.text2} size={17} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={rowTitle(t)}>ファイルに保存</Text>
                 <Text style={rowSub(t)}>共有シートで AirDrop / iCloud / 印刷</Text>
               </View>
-              <Text style={{ color: t.text3 }}>›</Text>
+              <AppIcon name="chevronRight" color={t.text3} size={17} />
             </CardRow>
             <CardRow onPress={importMnemonic}>
               <View style={iconBox(t)}>
-                <Text style={{ color: t.text2 }}>⤒</Text>
+                <AppIcon name="arrowUpFromLine" color={t.text2} size={17} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={rowTitle(t)}>インポート</Text>
                 <Text style={rowSub(t)}>別端末からフレーズを取り込み</Text>
               </View>
-              <Text style={{ color: t.text3 }}>›</Text>
+              <AppIcon name="chevronRight" color={t.text3} size={17} />
             </CardRow>
             <CardRow onPress={regenerate} last>
               <View style={iconBox(t)}>
-                <Text style={{ color: t.danger }}>↻</Text>
+                <AppIcon name="refresh" color={t.danger} size={17} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, color: t.danger }}>鍵を作り直す</Text>
@@ -436,17 +437,17 @@ export default function SettingsScreen() {
           <Card>
             <CardRow onPress={!hasPp ? enablePp : undefined}>
               <View style={iconBox(t)}>
-                <Text style={{ color: t.text2 }}>🔐</Text>
+                <AppIcon name="lock" color={t.text2} size={17} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={rowTitle(t)}>パスフレーズで開く</Text>
                 <Text style={rowSub(t)}>{hasPp ? '設定済' : '未設定'}</Text>
               </View>
-              <Text style={{ color: t.text3 }}>›</Text>
+              <AppIcon name="chevronRight" color={t.text3} size={17} />
             </CardRow>
             <CardRow last>
               <View style={iconBox(t)}>
-                <Text style={{ color: t.text2 }}>⏱</Text>
+                <AppIcon name="timer" color={t.text2} size={17} />
               </View>
               <Text style={{ flex: 1, fontSize: 14, color: t.text }}>自動ロック</Text>
               <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -471,7 +472,9 @@ export default function SettingsScreen() {
             <CardRow last onPress={buy}>
               <Text style={{ flex: 1, color: t.text2 }}>容量を広げる</Text>
               <Text style={[type.num, { color: t.text, fontWeight: '500' }]}>¥480 / 月</Text>
-              <Text style={{ color: t.text3, marginLeft: 8 }}>›</Text>
+              <View style={{ marginLeft: 8 }}>
+                <AppIcon name="chevronRight" color={t.text3} size={17} />
+              </View>
             </CardRow>
           </Card>
         </View>
@@ -545,7 +548,7 @@ export default function SettingsScreen() {
               padding: 16,
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <Text style={{ color: t.accentText, fontSize: 16 }}>🛡</Text>
+              <AppIcon name="shield" color={t.accentText} size={18} />
               <Text style={{ fontSize: 14, fontWeight: '600', color: t.text }}>
                 アプリがなくなっても、取り出せます
               </Text>
@@ -565,7 +568,7 @@ export default function SettingsScreen() {
                 <Text style={{ fontSize: 14, color: t.danger }}>アカウントを消す</Text>
                 <Text style={rowSub(t)}>おまかせプランのデータはすぐに消えます</Text>
               </View>
-              <Text style={{ color: t.danger }}>›</Text>
+              <AppIcon name="chevronRight" color={t.danger} size={17} />
             </CardRow>
           </Card>
         </View>

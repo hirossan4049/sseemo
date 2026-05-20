@@ -28,6 +28,7 @@ import { getMaster } from '@/state/keyStore';
 import RNFS from 'react-native-fs';
 import { useTheme, radii, type } from '@/theme';
 import { Screen, NavBar, IconButton, FAB, Button } from '@/components/ui';
+import { AppIcon } from '@/components/icons';
 
 type SortKey = 'name' | 'size' | 'mtime';
 
@@ -180,8 +181,14 @@ export default function FoldersScreen() {
             <Pressable
               onPress={() => setStack(stack.slice(0, -1))}
               hitSlop={10}
-              style={{ marginBottom: 4 }}>
-              <Text style={{ color: t.text, fontSize: 18 }}>‹ 戻る</Text>
+              style={{
+                marginBottom: 4,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 2,
+              }}>
+              <AppIcon name="chevronLeft" color={t.text} size={18} />
+              <Text style={{ color: t.text, fontSize: 16 }}>戻る</Text>
             </Pressable>
           ) : null
         }
@@ -191,10 +198,10 @@ export default function FoldersScreen() {
               onPress={() =>
                 setSort(sort === 'name' ? 'size' : sort === 'size' ? 'mtime' : 'name')
               }>
-              <Text style={{ color: t.text, fontSize: 14 }}>↕</Text>
+              <AppIcon name="arrowUpDown" color={t.text} size={18} />
             </IconButton>
             <IconButton onPress={newFolder}>
-              <Text style={{ color: t.text, fontSize: 18 }}>+</Text>
+              <AppIcon name="plus" color={t.text} size={20} />
             </IconButton>
           </>
         }
@@ -211,7 +218,7 @@ export default function FoldersScreen() {
             alignItems: 'center',
             gap: 8,
           }}>
-          <Text style={{ color: t.text3, fontSize: 14 }}>🔍</Text>
+          <AppIcon name="search" color={t.text3} size={17} />
           <TextInput
             placeholder="検索"
             placeholderTextColor={t.text3}
@@ -277,9 +284,11 @@ export default function FoldersScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                <Text style={{ fontSize: 18, color: item.isFolder ? t.accentText : t.text2 }}>
-                  {item.isFolder ? '📁' : '📄'}
-                </Text>
+                <AppIcon
+                  name={item.isFolder ? 'folder' : 'file'}
+                  color={item.isFolder ? t.accentText : t.text2}
+                  size={20}
+                />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
@@ -292,9 +301,9 @@ export default function FoldersScreen() {
                 </Text>
               </View>
               {sel ? (
-                <Text style={{ color: t.accentText, fontSize: 14 }}>✓</Text>
+                <AppIcon name="check" color={t.accentText} size={18} strokeWidth={2.8} />
               ) : (
-                <Text style={{ color: t.text3, fontSize: 14 }}>›</Text>
+                <AppIcon name="chevronRight" color={t.text3} size={18} />
               )}
             </Pressable>
           );
@@ -325,7 +334,7 @@ export default function FoldersScreen() {
               Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
-        <Text style={{ color: t.bg, fontSize: 22 }}>📄</Text>
+        <AppIcon name="file" color={t.bg} size={24} />
       </FAB>
       <FAB
         testID="folders-fab"
@@ -338,7 +347,7 @@ export default function FoldersScreen() {
             Alert.alert('うまくいきませんでした', e.message);
           }
         }}>
-        <Text style={{ color: t.bg, fontSize: 26, lineHeight: 28 }}>+</Text>
+        <AppIcon name="plus" color={t.bg} size={28} strokeWidth={2.4} />
       </FAB>
     </Screen>
   );

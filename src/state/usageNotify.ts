@@ -26,14 +26,28 @@ type Notifications = {
   setNotificationHandler?: (h: any) => void;
 };
 
+let cached: Notifications | null | undefined;
 function loadModule(): Notifications | null {
+  if (cached !== undefined) return cached;
+  // expo-notifications relies on expo-modules-core's native module bridge,
+  // which isn't installed in this RN-CLI project. require() throws
+  // synchronously ("Cannot find native module 'ExpoPushTokenManager'") and
+  // the error also surfaces in LogBox even with a try/catch around the call
+  // site. We therefore short-circuit unless an env flag explicitly enables
+  // the dynamic require for ad-hoc testing.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const g: any = globalThis as any;
+  if (!g.__SECSTORAGE_ENABLE_NOTIFICATIONS__) {
+    cached = null;
+    return null;
+  }
   try {
-    // require だと metro が静的に解決できないと落ちるため try/catch で握り潰す
-    // (devClient 環境では存在するが Jest 等の Node 単体テストでは存在しない)。
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('expo-notifications');
-    return mod as Notifications;
+    cached = mod as Notifications;
+    return cached;
   } catch {
+    cached = null;
     return null;
   }
 }

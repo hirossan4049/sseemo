@@ -4,7 +4,6 @@ import {
   Text,
   Alert,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import { deviceLogin } from '@/auth/deviceLogin';
 import { useTheme, type } from '@/theme';
@@ -16,6 +15,7 @@ import {
   Wordmark,
   Screen,
 } from '@/components/ui';
+import { AppIcon } from '@/components/icons';
 
 export default function WelcomeScreen({ navigation }: any) {
   const t = useTheme();
@@ -23,15 +23,14 @@ export default function WelcomeScreen({ navigation }: any) {
 
   return (
     <Screen testID="welcome-screen">
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: 24,
-            paddingTop: 60,
-            paddingBottom: 40,
-            justifyContent: 'space-between',
-          }}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 60,
+          paddingBottom: 40,
+          justifyContent: 'space-between',
+        }}>
           <View>
             <View style={{ alignItems: 'center', marginBottom: 40, gap: 14 }}>
               <BrandMark size={88} />
@@ -72,9 +71,7 @@ export default function WelcomeScreen({ navigation }: any) {
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Text style={{ color: t.accentText, fontSize: 13, fontWeight: '700' }}>
-                      ✓
-                    </Text>
+                    <AppIcon name="check" color={t.accentText} size={15} strokeWidth={3} />
                   </View>
                   <Text style={{ flex: 1, fontSize: 14, color: t.text }}>
                     {line}
@@ -113,8 +110,7 @@ export default function WelcomeScreen({ navigation }: any) {
               続けると 利用規約 と プライバシー に同意したことになります
             </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
     </Screen>
   );
 }

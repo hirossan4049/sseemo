@@ -16,7 +16,13 @@ import {
   TextStyle,
   TextInputProps,
 } from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+  type Edge,
+} from 'react-native-safe-area-context';
 import { useTheme, radii, spacing, type, shadows, Palette } from '@/theme';
+import { AppIcon } from '@/components/icons';
 
 // ─── Card ────────────────────────────────────────────────────────────────
 export function Card({
@@ -238,7 +244,7 @@ export function FAB({
   onPress,
   children,
   testID,
-  bottomOffset = 92,
+  bottomOffset = 0,
   rightOffset = 18,
 }: {
   onPress?: () => void;
@@ -248,6 +254,7 @@ export function FAB({
   rightOffset?: number;
 }) {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Pressable
       testID={testID}
@@ -256,7 +263,7 @@ export function FAB({
         {
           position: 'absolute',
           right: rightOffset,
-          bottom: bottomOffset,
+          bottom: bottomOffset + insets.bottom,
           width: 56,
           height: 56,
           borderRadius: radii['3xl'],
@@ -341,7 +348,7 @@ export function SubNav({
       }}>
       {onBack ? (
         <IconButton ghost onPress={onBack}>
-          <Text style={{ fontSize: 22, color: t.text }}>‹</Text>
+          <AppIcon name="chevronLeft" color={t.text} size={22} />
         </IconButton>
       ) : null}
       <Text
@@ -495,18 +502,21 @@ export function Screen({
   children,
   testID,
   style,
+  edges = ['top', 'left', 'right'],
 }: {
   children: ReactNode;
   testID?: string;
   style?: StyleProp<ViewStyle>;
+  edges?: Edge[];
 }) {
   const t = useTheme();
   return (
-    <View
+    <SafeAreaView
       testID={testID}
+      edges={edges}
       style={[{ flex: 1, backgroundColor: t.bg }, style]}>
       {children}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -546,7 +556,7 @@ export function BrandMark({ size = 64 }: { size?: number }) {
         shadowRadius: size * 0.18,
         shadowOffset: { width: 0, height: size * 0.08 },
       }}>
-      <Text style={{ fontSize: size * 0.5, color: '#fff' }}>🔒</Text>
+      <AppIcon name="lock" size={size * 0.48} color="#fff" strokeWidth={2.4} />
     </View>
   );
 }
