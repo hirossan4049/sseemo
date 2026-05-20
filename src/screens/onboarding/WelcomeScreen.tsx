@@ -11,12 +11,21 @@ export default function WelcomeScreen({ navigation }: any) {
 
   return (
     <View style={s.root} testID="welcome-screen">
-      <Text style={s.title}>SecStorage</Text>
-      <Text style={s.lead}>鍵は、自分で持つ。</Text>
+      <Text style={s.title}>大事なものを、{'\n'}安心して置ける場所。</Text>
       <Text style={s.body}>
-        E2E暗号化で写真・書類を保管します。鍵さえあれば、アプリ無しでも復号できます。
+        写真も、書類も、思い出も。鍵はあなたが持っていてください。アプリがなくなっても、データは取り出せます。
       </Text>
-      <View style={{ height: 24 }} />
+      <View style={{ height: 32 }} />
+      <Text style={s.subTitle}>はじめまして</Text>
+      <Text style={s.subBody}>
+        Apple IDでサインインします。お支払いの管理だけに使うので、ファイルや鍵はこちらからは見えません。
+      </Text>
+      <View style={s.checklist}>
+        <Text style={s.checkItem}>・ファイルは手元で鍵をかけます</Text>
+        <Text style={s.checkItem}>・必要なのはApple IDだけ</Text>
+        <Text style={s.checkItem}>・やめたいときはすぐに消せます</Text>
+      </View>
+      <View style={{ height: 16 }} />
       <Button
         testID="welcome-apple-btn"
         title="Apple でサインイン"
@@ -83,9 +92,12 @@ export default function WelcomeScreen({ navigation }: any) {
 
 const s = StyleSheet.create({
   root: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 32, fontWeight: '700' },
-  lead: { fontSize: 20, marginTop: 12, color: '#444' },
-  body: { fontSize: 14, marginTop: 16, color: '#666', lineHeight: 20 },
+  title: { fontSize: 28, fontWeight: '700', lineHeight: 38 },
+  body: { fontSize: 15, marginTop: 16, color: '#555', lineHeight: 22 },
+  subTitle: { fontSize: 20, fontWeight: '600' },
+  subBody: { fontSize: 14, marginTop: 8, color: '#666', lineHeight: 20 },
+  checklist: { marginTop: 14 },
+  checkItem: { fontSize: 13, color: '#555', marginVertical: 2 },
   devBox: {
     marginTop: 32,
     padding: 12,
