@@ -3,7 +3,11 @@
  * SecStorage 復号 CLI (アプリ非依存)
  *
  * 使用法:
- *   ts-node cli/decrypt.ts <mnemonic-file> <encrypted-file> <output-file>
+ *   単一ファイル: ts-node cli/decrypt.ts <mnemonic-file> <encrypted-file> <output-file>
+ *   チャンク版:   ts-node cli/decrypt.ts <mnemonic-file> --manifest <manifest.json> <output-file>
+ *
+ * --manifest モードは encryptAndUploadChunked が吐く manifest.json と
+ * 同ディレクトリ配下の <index>.c サイドカー群を結合して復号する。
  *
  * mnemonic-file: 12語スペース区切りのテキスト
  *
@@ -43,16 +47,60 @@ function gcmDecrypt(key: Buffer, nonce: Buffer, blob: Buffer): Buffer {
   return Buffer.concat([d.update(ct), d.final()]);
 }
 
+function deriveMaster(mnemonicPath: string): Buffer {
+  const mnemonic = readFileSync(mnemonicPath, 'utf8').trim().toLowerCase();
+  if (!mnemonic.match(/^[a-z]+( [a-z]+){11,23}$/)) throw new Error('bad mnemonic');
+  const seed = Buffer.from(mnemonicToSeedSync(mnemonic, ''));
+  return hkdf(seed, Buffer.from('SecStorage/v1'), Buffer.from('master'), 32);
+}
+
+function decryptManifest(master: Buffer, manifestPath: string, outPath: string): void {
+  const path = require('path');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const headerAndMeta = Buffer.from(manifest.header, 'base64');
+  if (!headerAndMeta.slice(0, 4).equals(MAGIC)) throw new Error('bad magic');
+  const fileSalt = headerAndMeta.slice(8, 24);
+  const metaLen = headerAndMeta.readUInt32LE(36);
+  const fileKey = hkdf(master, fileSalt, Buffer.from('SSF1/file'), 32);
+  const metaBuf = headerAndMeta.slice(HEADER_SIZE, HEADER_SIZE + metaLen);
+  const metaNonce = metaBuf.slice(0, NONCE_SIZE);
+  const metaCT = metaBuf.slice(NONCE_SIZE);
+  const meta = JSON.parse(gcmDecrypt(fileKey, metaNonce, metaCT).toString('utf8'));
+  console.error('meta:', meta);
+
+  const dir = path.dirname(manifestPath);
+  writeFileSync(outPath, '');
+  const outFd = openSync(outPath, 'w');
+  const fs = require('fs');
+  for (const c of manifest.chunks) {
+    const local = path.join(dir, `${c.index}.c`);
+    const blob = readFileSync(local);
+    const nonce = blob.slice(0, NONCE_SIZE);
+    const ctTag = blob.slice(NONCE_SIZE);
+    const plain = gcmDecrypt(fileKey, nonce, ctTag);
+    fs.writeSync(outFd, plain);
+  }
+  closeSync(outFd);
+  console.error(`ok -> ${outPath}`);
+}
+
 function main() {
-  const [, , mnemonicPath, encPath, outPath] = process.argv;
+  const argv = process.argv.slice(2);
+  if (argv[1] === '--manifest') {
+    const [mnemonicPath, , manifestPath, outPath] = argv;
+    if (!mnemonicPath || !manifestPath || !outPath) {
+      console.error('usage: decrypt.ts <mnemonic-file> --manifest <manifest.json> <output>');
+      process.exit(1);
+    }
+    decryptManifest(deriveMaster(mnemonicPath), manifestPath, outPath);
+    return;
+  }
+  const [mnemonicPath, encPath, outPath] = argv;
   if (!mnemonicPath || !encPath || !outPath) {
     console.error('usage: decrypt.ts <mnemonic-file> <encrypted> <output>');
     process.exit(1);
   }
-  const mnemonic = readFileSync(mnemonicPath, 'utf8').trim().toLowerCase();
-  if (!mnemonic.match(/^[a-z]+( [a-z]+){11,23}$/)) throw new Error('bad mnemonic');
-  const seed = Buffer.from(mnemonicToSeedSync(mnemonic, ''));
-  const master = hkdf(seed, Buffer.from('SecStorage/v1'), Buffer.from('master'), 32);
+  const master = deriveMaster(mnemonicPath);
 
   const fd = openSync(encPath, 'r');
   const size = statSync(encPath).size;
