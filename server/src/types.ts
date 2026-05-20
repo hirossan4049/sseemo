@@ -12,6 +12,8 @@ export interface Env {
   R2_SECRET_ACCESS_KEY: string;
   PRESIGN_TTL_SECONDS: string;
   APP_STORE_SHARED_SECRET: string;
+  /** Optional E2E debug nonce; if set, /debug/mint-jwt is enabled. */
+  DEBUG_MINT_NONCE?: string;
 }
 
 export interface SessionClaims {

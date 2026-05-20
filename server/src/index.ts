@@ -48,6 +48,12 @@ async function route(req: Request, env: Env, url: URL): Promise<Response> {
 
   if (req.method === 'POST' && p === '/auth/apple') return authApple(req, env);
 
+  // E2E debug: mint a session JWT for a test user, gated by DEBUG_MINT_NONCE.
+  // This route is added temporarily for end-to-end verification and removed
+  // immediately afterwards. The shared secret is set via `wrangler secret put`
+  // and never committed.
+  if (req.method === 'POST' && p === '/debug/mint-jwt') return debugMintJwt(req, env);
+
   // Everything below requires auth.
   const claims = await requireAuth(req, env);
 
@@ -116,6 +122,18 @@ async function authApple(req: Request, env: Env): Promise<Response> {
     env.JWT_SECRET,
   );
   return json({ token: jwt, userId: claims.sub });
+}
+
+async function debugMintJwt(req: Request, env: Env): Promise<Response> {
+  const expected = (env as any).DEBUG_MINT_NONCE as string | undefined;
+  if (!expected) return json({ error: 'disabled' }, 404);
+  const got = req.headers.get('x-debug-nonce') ?? '';
+  if (got !== expected) return json({ error: 'forbidden' }, 403);
+  const { sub, email } = (await req.json()) as { sub: string; email?: string };
+  if (!sub || !/^[A-Za-z0-9._\-]+$/.test(sub)) return json({ error: 'bad sub' }, 400);
+  await ensureUser(env, sub, email);
+  const jwt = await signSessionJWT({ sub, email }, env.JWT_SECRET);
+  return json({ token: jwt, userId: sub });
 }
 
 async function iapVerify(req: Request, env: Env, c: SessionClaims): Promise<Response> {
