@@ -7,7 +7,11 @@ import {
   Button,
   ScrollView,
   TextInput,
+  Share,
+  Platform,
 } from 'react-native';
+import RNFS from 'react-native-fs';
+import QuickCrypto from 'react-native-quick-crypto';
 import { clearMnemonic, loadMnemonic } from '@/crypto/keychain';
 import {
   lock,
@@ -76,6 +80,45 @@ export default function SettingsScreen() {
     const m = await loadMnemonic();
     if (!m) return;
     Alert.alert('リカバリーフレーズ', m);
+  }
+
+  /**
+   * spec §14: 12ワードをファイルとして書き出し、Share シートで Files /
+   * AirDrop / iCloud / 印刷など好きな宛先にユーザーが送れるようにする。
+   * 終了後にテンポラリファイルを削除する。
+   */
+  async function exportMnemonicToFile() {
+    const m = await loadMnemonic();
+    if (!m) {
+      Alert.alert('エラー', 'リカバリーフレーズが見つかりません');
+      return;
+    }
+    const opaqueDir = `${RNFS.CachesDirectoryPath}/ssf-share`;
+    await RNFS.mkdir(opaqueDir).catch(() => {});
+    const opaqueId = Buffer.from(QuickCrypto.randomBytes(12) as any).toString('hex');
+    const out = `${opaqueDir}/secstorage-recovery-${opaqueId}.txt`;
+    const body =
+      'SecStorage リカバリーフレーズ (BIP-39 12 words)\n' +
+      '取扱注意: このフレーズを知る者はあなたのすべてのファイルを復号できます。\n\n' +
+      m +
+      '\n';
+    await RNFS.writeFile(out, body, 'utf8');
+    try {
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { url: `file://${out}` }
+          : {
+              url: `file://${out}`,
+              message: body,
+              title: 'SecStorage Recovery Phrase',
+            },
+      );
+    } finally {
+      const ttlMs = Platform.OS === 'android' ? 5000 : 0;
+      setTimeout(() => {
+        RNFS.unlink(out).catch(() => {});
+      }, ttlMs);
+    }
   }
 
   async function regenerate() {
@@ -288,6 +331,8 @@ export default function SettingsScreen() {
       </Section>
       <Section title="鍵">
         <Button title="リカバリーフレーズを表示" onPress={exportMnemonic} />
+        <View style={{ height: 6 }} />
+        <Button title="ファイルに保存" onPress={exportMnemonicToFile} />
         <View style={{ height: 6 }} />
         <Button title="インポート" onPress={importMnemonic} />
         <View style={{ height: 6 }} />
