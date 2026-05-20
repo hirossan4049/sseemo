@@ -17,9 +17,10 @@ import {
   moveEntries,
   searchEntries,
 } from '@/storage/operations';
-import { pickAndImport } from '@/photos/importer';
+import { pickAndImport, pickAndImportDocuments } from '@/photos/importer';
 import { getActiveBucket, getActiveBucketId } from '@/state/bucketStore';
 import { downloadAndDecrypt } from '@/s3/download';
+import { downloadAndDecryptChunked } from '@/s3/chunkedDownload';
 import { getMaster } from '@/state/keyStore';
 import RNFS from 'react-native-fs';
 
@@ -99,13 +100,23 @@ export default function FoldersScreen() {
       return;
     }
     const out = `${RNFS.DocumentDirectoryPath}/${item.name}`;
+    const isChunked = !item.remoteKey.endsWith('.ssf');
     try {
-      await downloadAndDecrypt({
-        master,
-        creds: bucket,
-        remoteKey: item.remoteKey,
-        localPath: out,
-      });
+      if (isChunked) {
+        await downloadAndDecryptChunked({
+          master,
+          creds: bucket,
+          remotePrefix: item.remoteKey,
+          localPath: out,
+        });
+      } else {
+        await downloadAndDecrypt({
+          master,
+          creds: bucket,
+          remoteKey: item.remoteKey,
+          localPath: out,
+        });
+      }
       Alert.alert('ダウンロード完了', out);
     } catch (e: any) {
       Alert.alert('失敗', e.message);
@@ -193,6 +204,19 @@ export default function FoldersScreen() {
         }}
         ListEmptyComponent={<Text style={s.empty}>ファイルがありません</Text>}
       />
+      <TouchableOpacity
+        style={[s.fab, { bottom: 90, backgroundColor: '#5a5a8a' }]}
+        onPress={async () => {
+          try {
+            const n = await pickAndImportDocuments(parentId);
+            Alert.alert('ファイル取込完了', `${n} 件`);
+            load();
+          } catch (e: any) {
+            if (!/cancel/i.test(e.message ?? '')) Alert.alert('失敗', e.message);
+          }
+        }}>
+        <Text style={s.fabText}>📄</Text>
+      </TouchableOpacity>
       <TouchableOpacity
         style={s.fab}
         onPress={async () => {
