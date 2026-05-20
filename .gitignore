@@ -1,8 +1,15 @@
 node_modules/
 ios/Pods/
 ios/build/
+ios/vendor/
+ios/.bundle/
+ios/.xcode.env.local
 android/build/
 android/.gradle/
+.expo/
+.scaffold/
+.bundle/
+vendor/
 *.log
 .DS_Store
 .env
