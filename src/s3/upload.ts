@@ -3,6 +3,7 @@ import { FileEncryptor, FileMeta } from '@/crypto/cipher';
 import { DEFAULT_CHUNK_SIZE } from '@/crypto/format';
 import { S3_PART_MIN } from '@/config';
 import { BucketCredentials } from '@/crypto/keychain';
+import { b64decode } from '@/crypto/base64';
 import {
   abortMultipartUpload,
   completeMultipartUpload,
@@ -54,7 +55,7 @@ export async function encryptAndUpload(opts: UploadOptions): Promise<void> {
     while (offset < total) {
       const readSize = Math.min(DEFAULT_CHUNK_SIZE, total - offset);
       const b64 = await RNFS.read(opts.localPath, readSize, offset, 'base64');
-      const plain = Buffer.from(b64, 'base64');
+      const plain = b64decode(b64);
       offset += readSize;
 
       const ctChunk = enc.encryptChunk(plain);

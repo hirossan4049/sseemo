@@ -3,6 +3,7 @@ import { deriveMasterKey, deriveMasterKeyWithPassphrase } from '@/crypto/kdf';
 import { mnemonicToSeed } from '@/crypto/mnemonic';
 import { loadMnemonic } from '@/crypto/keychain';
 import { argon2idDerive } from '@/crypto/argon';
+import { b64decode } from '@/crypto/base64';
 
 const PP_SALT_KEY = '@secstorage/pp/salt';
 const PP_ENABLED_KEY = '@secstorage/pp/enabled';
@@ -33,7 +34,7 @@ export async function unlock(passphrase?: string): Promise<Buffer | null> {
     if (!passphrase) return null;
     const saltB64 = await AsyncStorage.getItem(PP_SALT_KEY);
     if (!saltB64) throw new Error('passphrase salt missing');
-    const salt = Buffer.from(saltB64, 'base64');
+    const salt = b64decode(saltB64);
     const argKey = await argon2idDerive(passphrase, salt);
     cachedMaster = deriveMasterKeyWithPassphrase(seed, argKey);
   } else {

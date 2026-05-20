@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { openGcm, sealGcm } from '@/crypto/cipher';
 import { deriveIndexKey } from '@/crypto/kdf';
 import { getMaster } from '@/state/keyStore';
+import { b64decode, b64encode } from '@/crypto/base64';
 
 export interface IndexEntry {
   id: string;
@@ -50,7 +51,7 @@ async function migrateV1IfNeeded(): Promise<IndexEntry[] | null> {
     const parsed = JSON.parse(v1) as IndexEntry[];
     if (!Array.isArray(parsed)) throw new Error('v1 index not array');
     const blob = sealGcm(deriveIndexKey(master), Buffer.from(JSON.stringify(parsed), 'utf8'));
-    await AsyncStorage.setItem(KEY_V2, blob.toString('base64'));
+    await AsyncStorage.setItem(KEY_V2, b64encode(blob));
     await AsyncStorage.removeItem(KEY_V1_LEGACY);
     await AsyncStorage.setItem(MIGRATION_FLAG, String(Date.now()));
     return parsed;
@@ -73,7 +74,7 @@ export async function loadIndex(): Promise<IndexEntry[]> {
     return migrated ?? [];
   }
   try {
-    const blob = Buffer.from(raw, 'base64');
+    const blob = b64decode(raw);
     const plain = openGcm(deriveIndexKey(master), blob);
     return JSON.parse(plain.toString('utf8'));
   } catch {
@@ -90,7 +91,7 @@ export async function saveIndex(entries: IndexEntry[]): Promise<void> {
   }
   const plain = Buffer.from(JSON.stringify(entries), 'utf8');
   const blob = sealGcm(deriveIndexKey(master), plain);
-  await AsyncStorage.setItem(KEY_V2, blob.toString('base64'));
+  await AsyncStorage.setItem(KEY_V2, b64encode(blob));
   // v1 が残っていたら確実に消す (save 経路でも保険)
   await AsyncStorage.removeItem(KEY_V1_LEGACY).catch(() => {});
 }

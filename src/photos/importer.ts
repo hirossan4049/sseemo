@@ -78,9 +78,10 @@ export async function pickAndImportDocuments(
   } catch {
     throw new Error('react-native-document-picker not installed');
   }
-  const res = await DocumentPicker.pickMultiple({
+  const res = await DocumentPicker.pick({
     type: [DocumentPicker.types.allFiles],
     copyTo: 'cachesDirectory',
+    allowMultiSelection: true,
   });
   let count = 0;
   for (const f of res) {

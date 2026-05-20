@@ -1,4 +1,5 @@
 import RNFS from 'react-native-fs';
+import { b64decode } from '@/crypto/base64';
 
 /**
  * ローカルパスから縮小済み JPEG バイト列を生成する。
@@ -45,7 +46,7 @@ export async function generateThumbnail(
     const clean = outPath.replace('file://', '');
     const b64 = await RNFS.readFile(clean, 'base64');
     await RNFS.unlink(clean).catch(() => {});
-    return Buffer.from(b64, 'base64');
+    return b64decode(b64);
   } catch (e) {
     console.warn('thumbnailGen failed', e);
     return null;

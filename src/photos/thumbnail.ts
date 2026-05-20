@@ -3,6 +3,7 @@ import { openGcm, sealGcm } from '@/crypto/cipher';
 import { deriveThumbKey } from '@/crypto/kdf';
 import { BucketCredentials } from '@/crypto/keychain';
 import { getObject, putObject } from '@/s3/client';
+import { b64decode, b64encode } from '@/crypto/base64';
 
 /**
  * サムネイル: 別途暗号化保存。
@@ -46,11 +47,11 @@ export async function loadThumb(
   const cachePath = `${CACHE_DIR}/${id}`;
   let blob: Buffer;
   if (await RNFS.exists(cachePath)) {
-    blob = Buffer.from(await RNFS.readFile(cachePath, 'base64'), 'base64');
+    blob = b64decode(await RNFS.readFile(cachePath, 'base64'));
   } else {
     try {
       blob = await getObject(creds, `thumbs/${id}.t`);
-      await RNFS.writeFile(cachePath, blob.toString('base64'), 'base64');
+      await RNFS.writeFile(cachePath, b64encode(blob), 'base64');
     } catch {
       return null;
     }
