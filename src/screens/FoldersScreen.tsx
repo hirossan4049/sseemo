@@ -8,7 +8,10 @@ import {
   RefreshControl,
   Alert,
   TextInput,
+  Share,
+  Platform,
 } from 'react-native';
+import QuickCrypto from 'react-native-quick-crypto';
 import { useFocusEffect } from '@react-navigation/native';
 import { childrenOf, IndexEntry } from '@/storage';
 import {
@@ -99,7 +102,19 @@ export default function FoldersScreen() {
       Alert.alert('エラー', 'ロック中またはバケット未設定');
       return;
     }
-    const out = `${RNFS.DocumentDirectoryPath}/${item.name}`;
+    // 平文を DocumentDirectory (Files.app/iCloud バックアップ対象) に書かない。
+    // CachesDirectory 配下の opaque サブディレクトリへ復号 → Share シートで
+    // ユーザー操作で外部に出してもらい、終了後 shred する (spec §5)。
+    const opaqueDir = `${RNFS.CachesDirectoryPath}/ssf-share`;
+    await RNFS.mkdir(opaqueDir).catch(() => {});
+    const opaqueId = Buffer.from(QuickCrypto.randomBytes(16) as any).toString('hex');
+    // ファイル名の拡張子だけ Share シートのアプリ振り分けに必要なので保持。
+    // ベース名は opaque (元ファイル名はパスに含めない)。
+    const ext = (() => {
+      const dot = item.name.lastIndexOf('.');
+      return dot > 0 ? item.name.slice(dot) : '';
+    })();
+    const out = `${opaqueDir}/${opaqueId}${ext}`;
     const isChunked = !item.remoteKey.endsWith('.ssf');
     try {
       if (isChunked) {
@@ -117,8 +132,32 @@ export default function FoldersScreen() {
           localPath: out,
         });
       }
-      Alert.alert('ダウンロード完了', out);
+      // iCloud バックアップから除外 (NSURLIsExcludedFromBackupKey)
+      try {
+        if (Platform.OS === 'ios' && (RNFS as any).setReadable) {
+          // RN-FS には setProtectionLevel(iOS) はあるが API が版で異なる。best-effort。
+          await (RNFS as any).setReadable?.(out, false);
+        }
+      } catch {
+        /* ignore */
+      }
+      try {
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { url: `file://${out}` }
+            : { url: `file://${out}`, message: item.name, title: item.name },
+        );
+      } finally {
+        // 短い TTL: Share シートが閉じたら即削除。Android では share アプリが
+        // まだ読んでいる可能性があるので 5秒 grace.
+        const ttlMs = Platform.OS === 'android' ? 5000 : 0;
+        setTimeout(() => {
+          RNFS.unlink(out).catch(() => {});
+        }, ttlMs);
+      }
     } catch (e: any) {
+      // 失敗時も部分復号ファイルを残さない
+      await RNFS.unlink(out).catch(() => {});
       Alert.alert('失敗', e.message);
     }
   }
