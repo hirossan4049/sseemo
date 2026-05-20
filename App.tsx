@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, ActivityIndicator, View } from 'react-native';
+import { AppState, ActivityIndicator, View, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RootTabs from '@/navigation/RootNavigator';
@@ -18,6 +18,7 @@ import {
 } from '@/state/keyStore';
 import { init as initIAP } from '@/iap';
 import { runAutoImport } from '@/photos/autoImport';
+import { runDevOnboard } from '@/auth/devOnboard';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +39,48 @@ export default function App() {
       }
       setReady(true);
     })();
+  }, []);
+
+  // Dev-only deeplink: `secstorage://dev-onboard?token=...&tag=...&verify=1&cleanup=1`
+  // drives the managed-backend onboarding + roundtrip without UI interaction.
+  // Backend gate (`ALLOW_DEV_AUTH`) is what actually keeps prod safe.
+  useEffect(() => {
+    if (!__DEV__) return;
+    async function handle(url: string | null) {
+      if (!url) return;
+      try {
+        // Parse `secstorage://dev-onboard?k=v&...` without depending on whatwg URL.
+        const m = /^secstorage:\/\/([^/?]+)(?:\?(.*))?$/.exec(url);
+        if (!m || m[1] !== 'dev-onboard') return;
+        const params = new Map<string, string>();
+        for (const kv of (m[2] ?? '').split('&').filter(Boolean)) {
+          const i = kv.indexOf('=');
+          const k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+          const v = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1));
+          params.set(k, v);
+        }
+        const token = params.get('token') ?? '';
+        const tag = params.get('tag') ?? 'sim';
+        const backendUrl = params.get('backend') || undefined;
+        const verify = params.get('verify') === '1';
+        const cleanup = params.get('cleanup') === '1';
+        if (!token) {
+          console.log('[VERIFY] dev-onboard missing token');
+          return;
+        }
+        await runDevOnboard({ backendUrl, token, deviceTag: tag, verify, cleanup });
+        if (!cleanup) {
+          // Surface onto the Main stack so the user can poke around.
+          setOnboarded(true);
+          setLocked(false);
+        }
+      } catch (e: any) {
+        console.log(`[VERIFY] dev-onboard error: ${e?.message ?? e}`);
+      }
+    }
+    Linking.getInitialURL().then(handle);
+    const sub = Linking.addEventListener('url', e => handle(e.url));
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
