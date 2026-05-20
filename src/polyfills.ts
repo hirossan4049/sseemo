@@ -24,4 +24,10 @@ if (typeof g.process.nextTick !== 'function') {
 }
 
 install();
-if (typeof g.Buffer === 'undefined') g.Buffer = BufferPolyfill;
+// react-native-quick-crypto's install() overwrites global.Buffer with
+// @craftzdog/react-native-buffer, whose toString('base64') / from(s,'base64')
+// delegate to a native quick-base64 TurboModule that isn't linked correctly
+// in this build (base64FromArrayBuffer / base64ToArrayBuffer undefined).
+// We don't need that native fast-path — restore the pure-JS Buffer so every
+// transitive caller's base64 conversion just works.
+g.Buffer = BufferPolyfill;

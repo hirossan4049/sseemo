@@ -8,6 +8,7 @@ import {
 } from '@/crypto/format';
 import { BucketCredentials } from '@/crypto/keychain';
 import { getObject } from './client';
+import { b64encode } from '@/crypto/base64';
 
 export interface DownloadOptions {
   master: Buffer;
@@ -54,7 +55,7 @@ export async function downloadAndDecrypt(opts: DownloadOptions): Promise<void> {
     const blob = buffered.slice(0, take);
     buffered = buffered.slice(take);
     const plain = dec.decryptChunk(blob);
-    await RNFS.appendFile(opts.localPath, plain.toString('base64'), 'base64');
+    await RNFS.appendFile(opts.localPath, b64encode(plain), 'base64');
     written += plain.length;
     opts.onProgress?.(written, header.plainSize);
     if (eof && buffered.length === 0) break;

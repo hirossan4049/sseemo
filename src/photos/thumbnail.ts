@@ -32,7 +32,7 @@ export async function saveThumb(
   const blob = sealGcm(deriveThumbKey(master), smallJpeg);
   await RNFS.writeFile(
     `${CACHE_DIR}/${id}`,
-    blob.toString('base64'),
+    b64encode(blob),
     'base64',
   );
   await putObject(creds, `thumbs/${id}.t`, blob, 'application/octet-stream');

@@ -3,7 +3,7 @@ import { deriveMasterKey, deriveMasterKeyWithPassphrase } from '@/crypto/kdf';
 import { mnemonicToSeed } from '@/crypto/mnemonic';
 import { loadMnemonic } from '@/crypto/keychain';
 import { argon2idDerive } from '@/crypto/argon';
-import { b64decode } from '@/crypto/base64';
+import { b64decode, b64encode } from '@/crypto/base64';
 
 const PP_SALT_KEY = '@secstorage/pp/salt';
 const PP_ENABLED_KEY = '@secstorage/pp/enabled';
@@ -20,7 +20,7 @@ export async function setPassphrase(passphrase: string): Promise<void> {
   const salt = Buffer.from(
     Array.from({ length: 16 }, () => Math.floor(Math.random() * 256)),
   );
-  await AsyncStorage.setItem(PP_SALT_KEY, salt.toString('base64'));
+  await AsyncStorage.setItem(PP_SALT_KEY, b64encode(salt));
   await AsyncStorage.setItem(PP_ENABLED_KEY, '1');
   await unlock(passphrase);
 }
