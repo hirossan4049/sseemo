@@ -21,3 +21,19 @@ export const ARGON2 = {
 
 /** S3 マルチパート最小パートサイズ (5 MiB) */
 export const S3_PART_MIN = 5 * 1024 * 1024;
+
+/**
+ * Managed mode backend (Cloudflare Worker) origin. Read from app.json extra
+ * if present, else fallback. Override per-build with:
+ *   "expo": { "extra": { "managedBackendUrl": "https://api.example.com" } }
+ */
+function readManagedBackendUrl(): string {
+  // app.json extras aren't statically importable here without breaking RN
+  // bundling; consumers can override via setManagedBackendUrl().
+  return (
+    (globalThis as any).__SECSTORAGE_MANAGED_BACKEND_URL__ ??
+    'https://api.example.com'
+  );
+}
+
+export const MANAGED_BACKEND_URL = readManagedBackendUrl();

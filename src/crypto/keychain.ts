@@ -29,6 +29,10 @@ export interface BucketCredentials {
   accessKeyId: string;
   secretAccessKey: string;
   label?: string;
+  /** Managed-mode only: SecStorage backend URL (Workers origin). */
+  backendUrl?: string;
+  /** Managed-mode only: session JWT issued by `/auth/apple`. */
+  sessionToken?: string;
 }
 
 export async function saveBucket(creds: BucketCredentials): Promise<void> {

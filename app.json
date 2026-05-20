@@ -17,6 +17,9 @@
     },
     "plugins": [
       "expo-dev-client"
-    ]
+    ],
+    "extra": {
+      "managedBackendUrl": "https://api.example.com"
+    }
   }
 }
