@@ -18,7 +18,7 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
 
   async function commit() {
     if (!checked) {
-      Alert.alert('確認', '「書き写した」にチェックしてください');
+      Alert.alert('もうひとつだけ', '書き写してから、チェックを入れてください。');
       return;
     }
     await saveMnemonic(mnemonic);
@@ -28,10 +28,9 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <ScrollView contentContainerStyle={s.root}>
-      <Text style={s.title}>回復用フレーズ</Text>
+      <Text style={s.title}>あなたの合言葉</Text>
       <Text style={s.body}>
-        この12語があれば、アプリ無しでもデータを復号できます。
-        オフラインに書き写し、誰にも見せず保管してください。
+        この12個の言葉が、あなたの鍵です。紙に書いて、大切な場所にしまっておいてください。なくしてしまうと、誰にも開けられなくなります。
       </Text>
       <View style={s.grid}>
         {mnemonic.split(' ').map((w, i) => (
@@ -43,9 +42,11 @@ export default function KeyGenScreen({ onDone }: { onDone: () => void }) {
       </View>
       <View style={s.checkRow}>
         <Switch value={checked} onValueChange={setChecked} />
-        <Text style={{ marginLeft: 8 }}>書き写した</Text>
+        <Text style={s.checkText}>
+          書き写しました。あとからは見られないこと、わかっています。
+        </Text>
       </View>
-      <Button title="完了" onPress={commit} />
+      <Button title="次へ" onPress={commit} />
     </ScrollView>
   );
 }
@@ -68,4 +69,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 16,
   },
+  checkText: { marginLeft: 8, flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
 });
